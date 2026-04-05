@@ -14,7 +14,7 @@ export class NashirTelegram implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir Telegram',
 		name: 'nashirTelegram',
-		icon: 'file:../shared/nashir.svg',
+		icon: 'file:nashir.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',

@@ -14,7 +14,7 @@ export class NashirYouTube implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir YouTube',
 		name: 'nashirYouTube',
-		icon: 'file:../shared/nashir.svg',
+		icon: 'file:nashir.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',

@@ -14,7 +14,7 @@ export class NashirInstagram implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir Instagram',
 		name: 'nashirInstagram',
-		icon: 'file:../shared/nashir.svg',
+		icon: 'file:nashir.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',

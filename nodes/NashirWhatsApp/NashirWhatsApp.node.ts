@@ -14,7 +14,7 @@ export class NashirWhatsApp implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir WhatsApp',
 		name: 'nashirWhatsApp',
-		icon: 'file:../shared/nashir.svg',
+		icon: 'file:nashir.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
