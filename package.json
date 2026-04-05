@@ -1,0 +1,53 @@
+{
+  "name": "n8n-nodes-nashir",
+  "version": "0.1.4",
+  "description": "n8n community nodes for nashir.ai — publish to Facebook, Instagram, TikTok, LinkedIn, YouTube, WhatsApp and Telegram",
+  "keywords": [
+    "n8n-community-node-package",
+    "nashir",
+    "social media",
+    "facebook",
+    "instagram",
+    "tiktok",
+    "linkedin",
+    "youtube",
+    "whatsapp",
+    "telegram"
+  ],
+  "license": "MIT",
+  "homepage": "https://nashir.ai",
+  "author": "nashir.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UbaiSalih/n8n-nodes-nashir"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/NashirApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/NashirFacebook/NashirFacebook.node.js",
+      "dist/nodes/NashirInstagram/NashirInstagram.node.js",
+      "dist/nodes/NashirTikTok/NashirTikTok.node.js",
+      "dist/nodes/NashirLinkedIn/NashirLinkedIn.node.js",
+      "dist/nodes/NashirYouTube/NashirYouTube.node.js",
+      "dist/nodes/NashirWhatsApp/NashirWhatsApp.node.js",
+      "dist/nodes/NashirTelegram/NashirTelegram.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "n8n-workflow": "^2.13.1",
+    "typescript": "^5.9.3"
+  }
+}
