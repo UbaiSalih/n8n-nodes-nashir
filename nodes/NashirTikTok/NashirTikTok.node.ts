@@ -18,7 +18,7 @@ export class NashirTikTok implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Publish and manage TikTok videos via nashir.ai',
+		description: 'Publish and manage TikTok posts (video & photo) via nashir.ai',
 		defaults: { name: 'Nashir TikTok', color: '#000000' },
 		inputs: ['main'],
 		outputs: ['main'],
@@ -30,14 +30,15 @@ export class NashirTikTok implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{ name: 'Delete Post', value: 'deletePost', action: 'Delete a post' },
-					{ name: 'Get Posts', value: 'getPosts', action: 'Get posts' },
-					{ name: 'Publish Video', value: 'publishVideo', action: 'Publish a video now' },
-					{ name: 'Schedule Video', value: 'scheduleVideo', action: 'Schedule a video' },
+					{ name: 'Delete Post',    value: 'deletePost',    action: 'Delete a post' },
+					{ name: 'Get Posts',      value: 'getPosts',      action: 'Get posts' },
+					{ name: 'Publish Media',  value: 'publishVideo',  action: 'Publish a video or photo now' },
+					{ name: 'Schedule Media', value: 'scheduleVideo', action: 'Schedule a video or photo' },
 				],
 				default: 'publishVideo',
 			},
 
+			// ── Account ──────────────────────────────────────────────────────────
 			{
 				displayName: 'Account',
 				name: 'account',
@@ -48,55 +49,123 @@ export class NashirTikTok implements INodeType {
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
+			// ── Media file ───────────────────────────────────────────────────────
 			{
-				displayName: 'Video Binary Property',
+				displayName: 'Media Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
 				required: true,
-				description: 'Name of the binary property containing the video file',
+				description: 'Name of the binary property containing the video or photo file',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
+			// ── Caption ──────────────────────────────────────────────────────────
 			{
 				displayName: 'Caption',
 				name: 'caption',
 				type: 'string',
 				typeOptions: { rows: 4 },
 				default: '',
-				description: 'Video caption / description',
+				description:
+					'Post caption. For TikTok the first line becomes the title (max 100 chars for video, 90 for photo).',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
+			// ── Privacy ──────────────────────────────────────────────────────────
 			{
-				displayName: 'Privacy',
-				name: 'privacy',
+				displayName: 'Privacy Level',
+				name: 'privacy_level',
 				type: 'options',
 				options: [
-					{ name: 'Public', value: 'public' },
-					{ name: 'Friends', value: 'friends' },
-					{ name: 'Private', value: 'private' },
+					{ name: 'Public to Everyone',    value: 'PUBLIC_TO_EVERYONE' },
+					{ name: 'Mutual Follow Friends', value: 'MUTUAL_FOLLOW_FRIENDS' },
+					{ name: 'Follower of Creator',   value: 'FOLLOWER_OF_CREATOR' },
+					{ name: 'Self Only',             value: 'SELF_ONLY' },
 				],
-				default: 'public',
+				default: 'PUBLIC_TO_EVERYONE',
+				required: true,
+				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
+			},
+
+			// ── Interactions ─────────────────────────────────────────────────────
+			{
+				displayName: 'Disable Comment',
+				name: 'disable_comment',
+				type: 'boolean',
+				default: false,
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
 			{
-				displayName: 'Allow Duet',
-				name: 'allowDuet',
+				displayName: 'Disable Duet',
+				name: 'disable_duet',
 				type: 'boolean',
-				default: true,
+				default: false,
+				description: 'Only applies to video posts — ignored for photo posts',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
 			{
-				displayName: 'Allow Stitch',
-				name: 'allowStitch',
+				displayName: 'Disable Stitch',
+				name: 'disable_stitch',
 				type: 'boolean',
-				default: true,
+				default: false,
+				description: 'Only applies to video posts — ignored for photo posts',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
+			// ── Brand / commercial content ────────────────────────────────────────
+			{
+				displayName: 'Brand Content',
+				name: 'brand_content_toggle',
+				type: 'boolean',
+				default: false,
+				description: 'This content promotes a brand, product or service',
+				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
+			},
+
+			{
+				displayName: 'Your Brand (Organic)',
+				name: 'brand_organic_toggle',
+				type: 'boolean',
+				default: false,
+				description: 'You are promoting yourself or your own business',
+				displayOptions: {
+					show: {
+						operation: ['publishVideo', 'scheduleVideo'],
+						brand_content_toggle: [true],
+					},
+				},
+			},
+
+			{
+				displayName: 'Branded Content (Paid Partnership)',
+				name: 'brand_branded_content_toggle',
+				type: 'boolean',
+				default: false,
+				description: 'You are promoting another brand\'s product or service (paid partnership)',
+				displayOptions: {
+					show: {
+						operation: ['publishVideo', 'scheduleVideo'],
+						brand_content_toggle: [true],
+					},
+				},
+			},
+
+			// ── Carousel (photo posts only) ───────────────────────────────────────
+			{
+				displayName: 'Additional Carousel Image URLs',
+				name: 'carousel_images',
+				type: 'string',
+				default: '',
+				description:
+					'Comma-separated public URLs of additional images for a carousel post (photo posts only). ' +
+					'The main media file is always the first/cover image. Up to 34 additional images.',
+				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
+			},
+
+			// ── Schedule time ─────────────────────────────────────────────────────
 			{
 				displayName: 'Scheduled At',
 				name: 'scheduledAt',
@@ -106,6 +175,7 @@ export class NashirTikTok implements INodeType {
 				displayOptions: { show: { operation: ['scheduleVideo'] } },
 			},
 
+			// ── Delete ────────────────────────────────────────────────────────────
 			{
 				displayName: 'Post ID',
 				name: 'postId',
@@ -135,24 +205,51 @@ export class NashirTikTok implements INodeType {
 				let responseData: IDataObject | IDataObject[];
 
 				if (operation === 'publishVideo' || operation === 'scheduleVideo') {
-					const accountId = this.getNodeParameter('account', i) as string;
-					const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
-					const caption = this.getNodeParameter('caption', i, '') as string;
-					const privacy = this.getNodeParameter('privacy', i, 'public') as string;
-					const allowDuet = this.getNodeParameter('allowDuet', i, true) as boolean;
-					const allowStitch = this.getNodeParameter('allowStitch', i, true) as boolean;
+					const accountId             = this.getNodeParameter('account', i) as string;
+					const binaryProp            = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
+					const caption               = this.getNodeParameter('caption', i, '') as string;
+					const privacy_level         = this.getNodeParameter('privacy_level', i) as string;
+					const disable_comment       = this.getNodeParameter('disable_comment', i, false) as boolean;
+					const disable_duet          = this.getNodeParameter('disable_duet', i, false) as boolean;
+					const disable_stitch        = this.getNodeParameter('disable_stitch', i, false) as boolean;
+					const brand_content_toggle  = this.getNodeParameter('brand_content_toggle', i, false) as boolean;
+					const brand_organic_toggle  = brand_content_toggle
+						? (this.getNodeParameter('brand_organic_toggle', i, false) as boolean)
+						: false;
+					const brand_branded_content_toggle = brand_content_toggle
+						? (this.getNodeParameter('brand_branded_content_toggle', i, false) as boolean)
+						: false;
+					const carousel_images_raw   = this.getNodeParameter('carousel_images', i, '') as string;
 
-					const videoUrl = await nashirUploadBinary(this, i, binaryProp);
+					// Upload binary and auto-detect media type from mimeType
+					const binaryData  = this.helpers.assertBinaryData(i, binaryProp);
+					const mimeType    = binaryData.mimeType ?? '';
+					const media_type: 'VIDEO' | 'PHOTO' = mimeType.startsWith('image/') ? 'PHOTO' : 'VIDEO';
+
+					const mediaUrl = await nashirUploadBinary(this, i, binaryProp);
+
+					// Parse optional carousel URLs
+					const carousel_images = carousel_images_raw
+						? carousel_images_raw.split(',').map((u) => u.trim()).filter(Boolean)
+						: undefined;
 
 					const body: IDataObject = {
 						content: caption,
 						platforms: ['tiktok'],
 						account_ids: [accountId],
-						image_url: videoUrl,
-						privacy,
-						allow_duet: allowDuet,
-						allow_stitch: allowStitch,
+						image_url: mediaUrl,
 						publish_now: operation === 'publishVideo',
+						tiktok_options: {
+							privacy_level,
+							disable_comment,
+							disable_duet:   media_type === 'VIDEO' ? disable_duet   : false,
+							disable_stitch: media_type === 'VIDEO' ? disable_stitch : false,
+							brand_content_toggle,
+							brand_organic_toggle,
+							brand_branded_content_toggle,
+							media_type,
+							...(carousel_images?.length ? { carousel_images } : {}),
+						},
 					};
 
 					if (operation === 'scheduleVideo') {

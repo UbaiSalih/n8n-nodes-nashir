@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-nashir",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "n8n community nodes for nashir.ai — publish to Facebook, Instagram, TikTok, LinkedIn, YouTube, WhatsApp and Telegram",
   "keywords": [
     "n8n-community-node-package",

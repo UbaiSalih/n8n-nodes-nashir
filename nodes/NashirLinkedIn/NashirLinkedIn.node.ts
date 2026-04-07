@@ -82,6 +82,15 @@ export class NashirLinkedIn implements INodeType {
 			},
 
 			{
+				displayName: 'Link URL',
+				name: 'linkUrl',
+				type: 'string',
+				default: '',
+				description: 'Optional image URL to include in the post (used when Attach Media is off)',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+			},
+
+			{
 				displayName: 'Media Binary Property',
 				name: 'binaryPropertyName',
 				type: 'string',
@@ -132,6 +141,7 @@ export class NashirLinkedIn implements INodeType {
 					const content = this.getNodeParameter('content', i) as string;
 					const postType = this.getNodeParameter('postType', i) as string;
 					const hasMedia = this.getNodeParameter('hasMedia', i, false) as boolean;
+					const linkUrl = this.getNodeParameter('linkUrl', i, '') as string;
 
 					const body: IDataObject = {
 						content,
@@ -144,6 +154,8 @@ export class NashirLinkedIn implements INodeType {
 					if (hasMedia) {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						body.image_url = await nashirUploadBinary(this, i, binaryProp);
+					} else if (linkUrl) {
+						body.image_url = linkUrl;
 					}
 
 					if (operation === 'schedulePost') {

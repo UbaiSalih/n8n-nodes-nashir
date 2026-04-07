@@ -75,7 +75,34 @@ export class NashirYouTube implements INodeType {
 				type: 'string',
 				typeOptions: { rows: 4 },
 				default: '',
-				description: 'Video description',
+				description: 'Video description (caption)',
+				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
+			},
+
+			{
+				displayName: 'Privacy',
+				name: 'privacy',
+				type: 'options',
+				options: [
+					{ name: 'Public', value: 'public' },
+					{ name: 'Unlisted', value: 'unlisted' },
+					{ name: 'Private', value: 'private' },
+				],
+				default: 'public',
+				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
+			},
+
+			{
+				displayName: 'Made for Kids (COPPA)',
+				name: 'madeForKids',
+				type: 'options',
+				options: [
+					{ name: 'No — not made for kids', value: 'false' },
+					{ name: 'Yes — made for kids', value: 'true' },
+				],
+				default: 'false',
+				required: true,
+				description: 'Required by YouTube/COPPA. Select whether this video is made for children.',
 				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
 			},
 
@@ -89,15 +116,59 @@ export class NashirYouTube implements INodeType {
 			},
 
 			{
-				displayName: 'Visibility',
-				name: 'visibility',
+				displayName: 'Category',
+				name: 'category',
 				type: 'options',
 				options: [
-					{ name: 'Public', value: 'public' },
-					{ name: 'Unlisted', value: 'unlisted' },
-					{ name: 'Private', value: 'private' },
+					{ name: 'Autos & Vehicles', value: '2' },
+					{ name: 'Comedy', value: '23' },
+					{ name: 'Education', value: '27' },
+					{ name: 'Entertainment', value: '24' },
+					{ name: 'Film & Animation', value: '1' },
+					{ name: 'Gaming', value: '20' },
+					{ name: 'Howto & Style', value: '26' },
+					{ name: 'Music', value: '10' },
+					{ name: 'News & Politics', value: '25' },
+					{ name: 'Nonprofits & Activism', value: '29' },
+					{ name: 'People & Blogs', value: '22' },
+					{ name: 'Pets & Animals', value: '15' },
+					{ name: 'Science & Technology', value: '28' },
+					{ name: 'Sports', value: '17' },
+					{ name: 'Travel & Events', value: '19' },
 				],
-				default: 'public',
+				default: '22',
+				description: 'YouTube video category',
+				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
+			},
+
+			{
+				displayName: 'License',
+				name: 'license',
+				type: 'options',
+				options: [
+					{ name: 'Standard YouTube License', value: 'youtube' },
+					{ name: 'Creative Commons — Attribution', value: 'creativeCommon' },
+				],
+				default: 'youtube',
+				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
+			},
+
+			{
+				displayName: 'Notify Subscribers',
+				name: 'notifySubscribers',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to send a notification to subscribers when the video is published',
+				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
+			},
+
+			{
+				displayName: 'Default Language',
+				name: 'defaultLanguage',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g. en, ar, fr',
+				description: 'BCP-47 language code for the video title and description (optional)',
 				displayOptions: { show: { operation: ['uploadVideo', 'scheduleVideo'] } },
 			},
 
@@ -152,25 +223,40 @@ export class NashirYouTube implements INodeType {
 					const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 					const title = this.getNodeParameter('title', i) as string;
 					const description = this.getNodeParameter('description', i, '') as string;
+					const privacy = this.getNodeParameter('privacy', i, 'public') as string;
+					const madeForKids = this.getNodeParameter('madeForKids', i, 'false') as string;
 					const tags = this.getNodeParameter('tags', i, '') as string;
-					const visibility = this.getNodeParameter('visibility', i, 'public') as string;
+					const category = this.getNodeParameter('category', i, '22') as string;
+					const license = this.getNodeParameter('license', i, 'youtube') as string;
+					const notifySubscribers = this.getNodeParameter('notifySubscribers', i, true) as boolean;
+					const defaultLanguage = this.getNodeParameter('defaultLanguage', i, '') as string;
 					const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
 
 					const videoUrl = await nashirUploadBinary(this, i, binaryProp);
 
-					const body: IDataObject = {
-						content: title,
-						description,
-						platforms: ['youtube'],
-						account_ids: [accountId],
-						image_url: videoUrl,
-						visibility,
-						publish_now: operation === 'uploadVideo',
+					const youtubeOptions: IDataObject = {
+						title,
+						privacy_status: privacy,
+						made_for_kids: madeForKids === 'true',
+						license,
+						notify_subscribers: notifySubscribers,
+						category_id: category,
 					};
 
 					if (tags) {
-						body.tags = tags.split(',').map((t) => t.trim()).filter(Boolean);
+						youtubeOptions.tags = tags.split(',').map((t) => t.trim()).filter(Boolean);
 					}
+					if (defaultLanguage) {
+						youtubeOptions.default_language = defaultLanguage;
+					}
+
+					const body: IDataObject = {
+						content: description,
+						platforms: ['youtube'],
+						account_ids: [accountId],
+						image_url: videoUrl,
+						youtube_options: youtubeOptions,
+					};
 
 					if (thumbnailProp) {
 						body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);

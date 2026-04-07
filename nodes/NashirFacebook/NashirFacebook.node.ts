@@ -197,9 +197,9 @@ export class NashirFacebook implements INodeType {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						const uploadedUrl = await nashirUploadBinary(this, i, binaryProp);
 						body.image_url = uploadedUrl;
+					} else if (linkUrl) {
+						body.image_url = linkUrl;
 					}
-
-					if (linkUrl) body.link_url = linkUrl;
 
 					if (operation === 'schedulePost') {
 						body.scheduled_at = this.getNodeParameter('scheduledAt', i) as string;
