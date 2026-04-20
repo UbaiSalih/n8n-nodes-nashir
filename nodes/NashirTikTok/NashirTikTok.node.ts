@@ -18,7 +18,10 @@ export class NashirTikTok implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Publish and manage TikTok posts (video & photo) via nashir.ai',
+		description:
+			'Publish and manage TikTok posts (video & photo) via nashir.ai. ' +
+			'Privacy Level is required. Interactions are off by default per TikTok guidelines. ' +
+			'Content Disclosure must have at least one option selected if enabled.',
 		defaults: { name: 'Nashir TikTok', color: '#000000' },
 		inputs: ['main'],
 		outputs: ['main'],
@@ -78,10 +81,9 @@ export class NashirTikTok implements INodeType {
 				name: 'privacy_level',
 				type: 'options',
 				options: [
-					{ name: 'Public to Everyone',    value: 'PUBLIC_TO_EVERYONE' },
-					{ name: 'Mutual Follow Friends', value: 'MUTUAL_FOLLOW_FRIENDS' },
-					{ name: 'Follower of Creator',   value: 'FOLLOWER_OF_CREATOR' },
-					{ name: 'Self Only',             value: 'SELF_ONLY' },
+					{ name: 'Public to Everyone', value: 'PUBLIC_TO_EVERYONE' },
+					{ name: 'Friends Only',        value: 'MUTUAL_FOLLOW_FRIENDS' },
+					{ name: 'Only Me',             value: 'SELF_ONLY' },
 				],
 				default: 'PUBLIC_TO_EVERYONE',
 				required: true,
@@ -90,34 +92,35 @@ export class NashirTikTok implements INodeType {
 
 			// ── Interactions ─────────────────────────────────────────────────────
 			{
-				displayName: 'Disable Comment',
-				name: 'disable_comment',
+				displayName: 'Allow Comments',
+				name: 'allow_comment',
 				type: 'boolean',
 				default: false,
+				description: 'Whether to allow viewers to comment on this post',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
 			{
-				displayName: 'Disable Duet',
-				name: 'disable_duet',
+				displayName: 'Allow Duet',
+				name: 'allow_duet',
 				type: 'boolean',
 				default: false,
-				description: 'Only applies to video posts — ignored for photo posts',
+				description: 'Whether to allow Duet — video posts only, ignored for photo posts',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
 			{
-				displayName: 'Disable Stitch',
-				name: 'disable_stitch',
+				displayName: 'Allow Stitch',
+				name: 'allow_stitch',
 				type: 'boolean',
 				default: false,
-				description: 'Only applies to video posts — ignored for photo posts',
+				description: 'Whether to allow Stitch — video posts only, ignored for photo posts',
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
 			// ── Brand / commercial content ────────────────────────────────────────
 			{
-				displayName: 'Brand Content',
+				displayName: 'Content Disclosure',
 				name: 'brand_content_toggle',
 				type: 'boolean',
 				default: false,
@@ -144,7 +147,7 @@ export class NashirTikTok implements INodeType {
 				name: 'brand_branded_content_toggle',
 				type: 'boolean',
 				default: false,
-				description: 'You are promoting another brand\'s product or service (paid partnership)',
+				description: "You are promoting another brand's product or service (paid partnership)",
 				displayOptions: {
 					show: {
 						operation: ['publishVideo', 'scheduleVideo'],
@@ -205,21 +208,21 @@ export class NashirTikTok implements INodeType {
 				let responseData: IDataObject | IDataObject[];
 
 				if (operation === 'publishVideo' || operation === 'scheduleVideo') {
-					const accountId             = this.getNodeParameter('account', i) as string;
-					const binaryProp            = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
-					const caption               = this.getNodeParameter('caption', i, '') as string;
-					const privacy_level         = this.getNodeParameter('privacy_level', i) as string;
-					const disable_comment       = this.getNodeParameter('disable_comment', i, false) as boolean;
-					const disable_duet          = this.getNodeParameter('disable_duet', i, false) as boolean;
-					const disable_stitch        = this.getNodeParameter('disable_stitch', i, false) as boolean;
-					const brand_content_toggle  = this.getNodeParameter('brand_content_toggle', i, false) as boolean;
-					const brand_organic_toggle  = brand_content_toggle
+					const accountId                   = this.getNodeParameter('account', i) as string;
+					const binaryProp                  = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
+					const caption                     = this.getNodeParameter('caption', i, '') as string;
+					const privacy_level               = this.getNodeParameter('privacy_level', i) as string;
+					const allow_comment               = this.getNodeParameter('allow_comment', i, false) as boolean;
+					const allow_duet                  = this.getNodeParameter('allow_duet', i, false) as boolean;
+					const allow_stitch                = this.getNodeParameter('allow_stitch', i, false) as boolean;
+					const brand_content_toggle        = this.getNodeParameter('brand_content_toggle', i, false) as boolean;
+					const brand_organic_toggle        = brand_content_toggle
 						? (this.getNodeParameter('brand_organic_toggle', i, false) as boolean)
 						: false;
 					const brand_branded_content_toggle = brand_content_toggle
 						? (this.getNodeParameter('brand_branded_content_toggle', i, false) as boolean)
 						: false;
-					const carousel_images_raw   = this.getNodeParameter('carousel_images', i, '') as string;
+					const carousel_images_raw         = this.getNodeParameter('carousel_images', i, '') as string;
 
 					// Upload binary and auto-detect media type from mimeType
 					const binaryData  = this.helpers.assertBinaryData(i, binaryProp);
@@ -241,9 +244,9 @@ export class NashirTikTok implements INodeType {
 						publish_now: operation === 'publishVideo',
 						tiktok_options: {
 							privacy_level,
-							disable_comment,
-							disable_duet:   media_type === 'VIDEO' ? disable_duet   : false,
-							disable_stitch: media_type === 'VIDEO' ? disable_stitch : false,
+							disable_comment: !allow_comment,
+							disable_duet:    media_type === 'VIDEO' ? !allow_duet   : false,
+							disable_stitch:  media_type === 'VIDEO' ? !allow_stitch : false,
 							brand_content_toggle,
 							brand_organic_toggle,
 							brand_branded_content_toggle,

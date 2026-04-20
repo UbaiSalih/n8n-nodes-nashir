@@ -49,7 +49,8 @@ export class NashirInstagram implements INodeType {
 				typeOptions: { loadOptionsMethod: 'loadInstagramAccounts' },
 				default: '',
 				required: true,
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				description: 'Select which Instagram account to use',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost', 'replyMessage', 'replyComment'] } },
 			},
 
 			{
@@ -195,15 +196,17 @@ export class NashirInstagram implements INodeType {
 				} else if (operation === 'getComments') {
 					responseData = await nashirApiRequest(this, 'GET', '/comments', undefined, { platform: 'instagram' });
 				} else if (operation === 'replyComment') {
+					const accountId = this.getNodeParameter('account', i) as string;
 					const commentId = this.getNodeParameter('commentId', i) as string;
 					const replyText = this.getNodeParameter('replyText', i) as string;
-					responseData = await nashirApiRequest(this, 'POST', `/comments/${commentId}/reply`, { message: replyText });
+					responseData = await nashirApiRequest(this, 'POST', `/comments/${commentId}/reply`, { message: replyText, account_id: accountId });
 				} else if (operation === 'getMessages') {
 					responseData = await nashirApiRequest(this, 'GET', '/messages', undefined, { platform: 'instagram' });
 				} else {
+					const accountId = this.getNodeParameter('account', i) as string;
 					const messageId = this.getNodeParameter('messageId', i) as string;
 					const replyText = this.getNodeParameter('replyText', i) as string;
-					responseData = await nashirApiRequest(this, 'POST', `/messages/${messageId}/reply`, { message: replyText });
+					responseData = await nashirApiRequest(this, 'POST', `/messages/${messageId}/reply`, { message: replyText, account_id: accountId });
 				}
 
 				const rows = Array.isArray(responseData) ? responseData : [responseData];

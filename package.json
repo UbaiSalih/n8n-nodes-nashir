@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-nashir",
-  "version": "0.2.0",
-  "description": "n8n community nodes for nashir.ai — publish to Facebook, Instagram, TikTok, LinkedIn, YouTube, WhatsApp and Telegram",
+  "version": "0.3.0",
+  "description": "n8n community nodes for nashir.ai — publish to Facebook, Instagram, TikTok, LinkedIn, YouTube, WhatsApp and Telegram, plus AI conversation management",
   "keywords": [
     "n8n-community-node-package",
     "nashir",
@@ -12,7 +12,10 @@
     "linkedin",
     "youtube",
     "whatsapp",
-    "telegram"
+    "telegram",
+    "ai",
+    "chatbot",
+    "conversation-history"
   ],
   "license": "MIT",
   "homepage": "https://nashir.ai",
@@ -48,7 +51,8 @@
       "dist/nodes/NashirLinkedIn/NashirLinkedIn.node.js",
       "dist/nodes/NashirYouTube/NashirYouTube.node.js",
       "dist/nodes/NashirWhatsApp/NashirWhatsApp.node.js",
-      "dist/nodes/NashirTelegram/NashirTelegram.node.js"
+      "dist/nodes/NashirTelegram/NashirTelegram.node.js",
+      "dist/nodes/NashirContact/NashirContact.node.js"
     ]
   },
   "devDependencies": {

@@ -43,7 +43,7 @@ export class NashirFacebook implements INodeType {
 				default: 'publishPost',
 			},
 
-			// ── Account (publish / schedule) ────────────────────────────────────────
+			// ── Account (publish / schedule / reply) ────────────────────────────────
 			{
 				displayName: 'Account',
 				name: 'account',
@@ -51,8 +51,8 @@ export class NashirFacebook implements INodeType {
 				typeOptions: { loadOptionsMethod: 'loadFacebookAccounts' },
 				default: '',
 				required: true,
-				description: 'Facebook page or account to post from',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				description: 'Select which Facebook page or account to use',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost', 'replyMessage', 'replyComment'] } },
 			},
 
 			// ── Content ─────────────────────────────────────────────────────────────
@@ -216,16 +216,18 @@ export class NashirFacebook implements INodeType {
 				} else if (operation === 'getComments') {
 					responseData = await nashirApiRequest(this, 'GET', '/comments', undefined, { platform: 'facebook' });
 				} else if (operation === 'replyComment') {
+					const accountId = this.getNodeParameter('account', i) as string;
 					const commentId = this.getNodeParameter('commentId', i) as string;
 					const replyText = this.getNodeParameter('replyText', i) as string;
-					responseData = await nashirApiRequest(this, 'POST', `/comments/${commentId}/reply`, { message: replyText });
+					responseData = await nashirApiRequest(this, 'POST', `/comments/${commentId}/reply`, { message: replyText, account_id: accountId });
 				} else if (operation === 'getMessages') {
 					responseData = await nashirApiRequest(this, 'GET', '/messages', undefined, { platform: 'facebook' });
 				} else {
 					// replyMessage
+					const accountId = this.getNodeParameter('account', i) as string;
 					const messageId = this.getNodeParameter('messageId', i) as string;
 					const replyText = this.getNodeParameter('replyText', i) as string;
-					responseData = await nashirApiRequest(this, 'POST', `/messages/${messageId}/reply`, { message: replyText });
+					responseData = await nashirApiRequest(this, 'POST', `/messages/${messageId}/reply`, { message: replyText, account_id: accountId });
 				}
 
 				const rows = Array.isArray(responseData) ? responseData : [responseData];

@@ -8,6 +8,38 @@ import {
 
 type AnyContext = IExecuteFunctions | ILoadOptionsFunctions;
 
+/** Shape of error objects thrown by ctx.helpers.request */
+interface RequestError extends Error {
+	statusCode?: number;
+	response?: { statusCode?: number; body?: IDataObject | string };
+}
+
+function throwFriendlyError(error: RequestError, endpoint: string): never {
+	const status =
+		error.statusCode ??
+		(error.response as { statusCode?: number } | undefined)?.statusCode;
+
+	if (status === 401 || status === 403) {
+		throw new Error(
+			'Authentication failed: your Nashir API key is invalid or does not have permission for this action. ' +
+				'Check your credentials at nashir.ai → Settings → API.',
+		);
+	}
+
+	if (status === 404) {
+		// Give a context-aware message based on the endpoint path
+		if (endpoint.includes('/contacts/')) {
+			throw new Error(`Contact not found. Verify the phone number is registered in nashir.ai.`);
+		}
+		if (endpoint.includes('/conversations/')) {
+			throw new Error(`Conversation not found for this phone number.`);
+		}
+		throw new Error(`Resource not found (404): ${endpoint}`);
+	}
+
+	throw error;
+}
+
 /**
  * Make an authenticated request to the Nashir API.
  */
@@ -17,7 +49,7 @@ export async function nashirApiRequest(
 	endpoint: string,
 	body?: IDataObject,
 	qs?: IDataObject,
-): Promise<IDataObject> {
+): Promise<IDataObject | IDataObject[]> {
 	const credentials = await ctx.getCredentials('nashirApi');
 	const baseUrl = ((credentials.baseUrl as string) || 'https://nashir.ai').replace(/\/$/, '');
 	const apiKey = credentials.apiKey as string;
@@ -38,7 +70,7 @@ export async function nashirApiRequest(
 	try {
 		return await ctx.helpers.request(options);
 	} catch (error) {
-		throw error;
+		throwFriendlyError(error as RequestError, endpoint);
 	}
 }
 
@@ -76,10 +108,10 @@ export async function nashirUploadBinary(
 	};
 
 	try {
-		const response = await ctx.helpers.request(options) as IDataObject;
+		const response = (await ctx.helpers.request(options)) as IDataObject;
 		return response.url as string;
 	} catch (error) {
-		throw error;
+		throwFriendlyError(error as RequestError, '/upload');
 	}
 }
 
@@ -106,7 +138,7 @@ export async function loadAccounts(
 	};
 
 	try {
-		const response = await ctx.helpers.request(options) as IDataObject | IDataObject[];
+		const response = (await ctx.helpers.request(options)) as IDataObject | IDataObject[];
 		let accounts: IDataObject[] = Array.isArray(response)
 			? response
 			: ((response.data as IDataObject[]) ?? []);
@@ -118,7 +150,11 @@ export async function loadAccounts(
 
 		return accounts.map((account) => ({
 			value: String(account.id),
-			name: (account.pageName || account.page_name || account.account_name || account.name || String(account.id)) as string,
+			name: (account.pageName ||
+				account.page_name ||
+				account.account_name ||
+				account.name ||
+				String(account.id)) as string,
 		}));
 	} catch {
 		return [];
