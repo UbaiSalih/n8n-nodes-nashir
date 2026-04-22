@@ -34,6 +34,7 @@ export class NashirTelegram implements INodeType {
 					{ name: 'Get Posts', value: 'getPosts', action: 'Get posts' },
 					{ name: 'Publish Post', value: 'publishPost', action: 'Publish a post now' },
 					{ name: 'Schedule Post', value: 'schedulePost', action: 'Schedule a post' },
+					{ name: 'Send Notification', value: 'sendNotification', action: 'Send a notification message to a connected Telegram chat' },
 				],
 				default: 'publishPost',
 			},
@@ -45,7 +46,40 @@ export class NashirTelegram implements INodeType {
 				typeOptions: { loadOptionsMethod: 'loadTelegramAccounts' },
 				default: '',
 				required: true,
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost', 'sendNotification'] } },
+			},
+
+			// ── sendNotification fields ──────────────────────────────────────────
+			{
+				displayName: 'Text',
+				name: 'text',
+				type: 'string',
+				typeOptions: { rows: 4 },
+				default: '',
+				required: true,
+				description: 'Message body. Supports Markdown by default.',
+				displayOptions: { show: { operation: ['sendNotification'] } },
+			},
+			{
+				displayName: 'Parse Mode',
+				name: 'parseMode',
+				type: 'options',
+				options: [
+					{ name: 'Markdown', value: 'Markdown' },
+					{ name: 'MarkdownV2', value: 'MarkdownV2' },
+					{ name: 'HTML', value: 'HTML' },
+					{ name: 'Plain', value: '' },
+				],
+				default: 'Markdown',
+				displayOptions: { show: { operation: ['sendNotification'] } },
+			},
+			{
+				displayName: 'Send Silently',
+				name: 'disableNotification',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to send the message without notification sound on the recipient device',
+				displayOptions: { show: { operation: ['sendNotification'] } },
 			},
 
 			{
@@ -121,7 +155,21 @@ export class NashirTelegram implements INodeType {
 				const operation = this.getNodeParameter('operation', i) as string;
 				let responseData: IDataObject | IDataObject[];
 
-				if (operation === 'publishPost' || operation === 'schedulePost') {
+				if (operation === 'sendNotification') {
+					const accountId = this.getNodeParameter('account', i) as string;
+					const text = this.getNodeParameter('text', i) as string;
+					const parseMode = this.getNodeParameter('parseMode', i, 'Markdown') as string;
+					const disableNotification = this.getNodeParameter('disableNotification', i, false) as boolean;
+
+					const body: IDataObject = {
+						account_id: accountId,
+						text,
+						disable_notification: disableNotification,
+					};
+					if (parseMode) body.parse_mode = parseMode;
+
+					responseData = await nashirApiRequest(this, 'POST', '/telegram/send', body);
+				} else if (operation === 'publishPost' || operation === 'schedulePost') {
 					const accountId = this.getNodeParameter('account', i) as string;
 					const content = this.getNodeParameter('content', i) as string;
 					const hasMedia = this.getNodeParameter('hasMedia', i, false) as boolean;
