@@ -31,6 +31,7 @@ export class NashirFacebook implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					{ name: 'Delete Comment', value: 'deleteComment', action: 'Delete a comment' },
 					{ name: 'Delete Post', value: 'deletePost', action: 'Delete a post' },
 					{ name: 'Get Comments', value: 'getComments', action: 'Get comments' },
 					{ name: 'Get Messages', value: 'getMessages', action: 'Get messages' },
@@ -130,14 +131,15 @@ export class NashirFacebook implements INodeType {
 				displayOptions: { show: { operation: ['deletePost'] } },
 			},
 
-			// ── Comment ID (reply) ──────────────────────────────────────────────────
+			// ── Comment ID (reply / delete) ─────────────────────────────────────────
 			{
 				displayName: 'Comment ID',
 				name: 'commentId',
 				type: 'string',
 				default: '',
 				required: true,
-				displayOptions: { show: { operation: ['replyComment'] } },
+				description: 'The nashir.ai comment ID (integer). Auto-resolves the team\u2019s page token server-side.',
+				displayOptions: { show: { operation: ['replyComment', 'deleteComment'] } },
 			},
 			{
 				displayName: 'Reply Text',
@@ -220,6 +222,9 @@ export class NashirFacebook implements INodeType {
 					const commentId = this.getNodeParameter('commentId', i) as string;
 					const replyText = this.getNodeParameter('replyText', i) as string;
 					responseData = await nashirApiRequest(this, 'POST', `/comments/${commentId}/reply`, { message: replyText, account_id: accountId });
+				} else if (operation === 'deleteComment') {
+					const commentId = this.getNodeParameter('commentId', i) as string;
+					responseData = await nashirApiRequest(this, 'POST', `/comments/${commentId}/delete`);
 				} else if (operation === 'getMessages') {
 					responseData = await nashirApiRequest(this, 'GET', '/messages', undefined, { platform: 'facebook' });
 				} else {

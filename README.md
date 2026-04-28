@@ -36,10 +36,32 @@ n8n-nodes-nashir
 | **Update Contact Tags** | Add tags to a contact (idempotent, comma-separated) |
 
 ### Nashir Facebook
-Publish posts and reels.
+
+| Operation | Description |
+|-----------|-------------|
+| Publish Post | Publish a post / reel to a Facebook Page |
+| Schedule Post | Schedule a post for later |
+| Get Posts | List posts published via nashir.ai |
+| Delete Post | Remove a post from the page |
+| Get Comments | List comments received on Page posts |
+| Reply to Comment | Reply to a Page comment |
+| **Delete Comment** | Delete a Page comment via the team's page token (used by AI moderation) |
+| Get Messages | List inbound Messenger messages |
+| Reply to Message | Reply to a Messenger thread |
 
 ### Nashir Instagram
-Publish feed posts, reels, and stories.
+
+| Operation | Description |
+|-----------|-------------|
+| Publish Post | Publish a feed post / reel / story / carousel |
+| Schedule Post | Schedule a post for later |
+| Get Posts | List posts published via nashir.ai |
+| Delete Post | Remove a post |
+| Get Comments | List comments received on IG media |
+| Reply to Comment | Reply to an IG comment |
+| **Delete Comment** | Delete an IG comment via the team's page token (used by AI moderation) |
+| Get Messages | List inbound DMs |
+| Reply to Message | Reply to a DM thread |
 
 ### Nashir TikTok
 Publish video and photo posts (Direct Post API).
@@ -76,6 +98,17 @@ This workflow fetches the last 10 messages for an inbound WhatsApp number and pa
 ---
 
 ## Changelog
+
+### 0.4.0 — Apr 2026
+
+**New operation: Delete Comment (Facebook + Instagram)**
+
+- **Delete Comment** on `Nashir Facebook` and `Nashir Instagram` — removes a comment via Meta Graph using the team's page token, looked up server-side. No `META_PAGE_ACCESS_TOKEN` env var required in n8n.
+- Auto-resolves the account/page from the stored comment row — only the `commentId` (nashir.ai message id) is needed. No account dropdown.
+- Idempotent: re-deleting an already-removed comment returns `{ success: true, already_deleted: true }`.
+- Recoverable Meta errors (`not_found`, `permission_denied`) return `{ success: false, error, detail }` with HTTP 200 so the workflow can continue. Token / network errors return HTTP 502 so n8n surfaces them.
+- Backed by `POST /api/v1/comments/:id/delete` on nashir.ai.
+- Bumped Meta Graph API version to `v25.0` for both reply and delete endpoints.
 
 ### 0.3.0 — Apr 2026
 
