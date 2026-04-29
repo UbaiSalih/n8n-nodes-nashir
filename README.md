@@ -34,6 +34,7 @@ n8n-nodes-nashir
 |-----------|-------------|
 | Get Contact | Fetch contact details by phone number |
 | **Update Contact Tags** | Add tags to a contact (idempotent, comma-separated) |
+| **Get Conversation History** | Fetch recent messages by sender id for AI agent context (cross-platform: FB / IG / WhatsApp) |
 
 ### Nashir Facebook
 
@@ -98,6 +99,15 @@ This workflow fetches the last 10 messages for an inbound WhatsApp number and pa
 ---
 
 ## Changelog
+
+### 0.5.0 — Apr 2026
+
+**New operation: Get Conversation History on `Nashir Contact`**
+
+- **Get Conversation History** on `Nashir Contact` — fetch the last N messages exchanged with a sender across any platform (FB Messenger, IG Direct, FB/IG comments, WhatsApp). Returns chronological `{ role, content, created_at }` rows ready to inject into an AI agent prompt.
+- Inputs: `senderId` (required — the platform-specific sender id from the inbound webhook payload) and `limit` (default 20, max 50).
+- Backed by `GET /api/v1/conversations/by-sender/:sender_id?limit=N` on nashir.ai.
+- Used by the v2 AI Auto Reply template to replace the n8n `memoryBufferWindow` step — history is now persisted server-side in `inbox_messages` and shared across workflow executions.
 
 ### 0.4.0 — Apr 2026
 
