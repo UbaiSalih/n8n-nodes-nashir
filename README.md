@@ -101,6 +101,14 @@ This workflow fetches the last 10 messages for an inbound WhatsApp number and pa
 
 ## Changelog
 
+### 0.6.1 — Apr 2026
+
+**Fix: `Nashir Contact` is now wireable as an AI Agent tool**
+
+- Added `usableAsTool: true` to `Nashir Contact`'s node description. n8n requires this flag on community nodes for `ai_tool` connections to survive workflow import. Without it, dropping `Nashir Contact → Search Knowledge Base` into an Agent's tools input was silently rejected on re-import (the connection lived in the JSON but the n8n UI rendered the agent disconnected).
+- Symptom this fixes: importing the **AI Auto Reply v2** template with 0.6.0 left the four KB nodes floating, agents showed no Tool / Chat Model / Memory wiring. Update to 0.6.1, re-import the template, wiring renders correctly.
+- No API change — workflows and credentials migrate cleanly. Operation surface is unchanged from 0.6.0.
+
 ### 0.6.0 — Apr 2026
 
 **New operation: Search Knowledge Base on `Nashir Contact`**

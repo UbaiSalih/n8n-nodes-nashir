@@ -18,6 +18,10 @@ export class NashirContact implements INodeType {
 		subtitle: '={{$parameter["operation"]}}',
 		description: 'Manage contacts and retrieve knowledge from nashir.ai',
 		defaults: { name: 'Nashir Contact', color: '#6366f1' },
+		// Required for n8n's AI Agent to accept this node as a tool source.
+		// Without it, ai_tool connections from this node are rejected on
+		// import (e.g. Search Knowledge Base wired into an agent's tools input).
+		usableAsTool: true,
 		inputs: ['main'],
 		outputs: ['main'],
 		credentials: [{ name: 'nashirApi', required: true }],
