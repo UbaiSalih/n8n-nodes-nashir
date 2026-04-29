@@ -16,7 +16,7 @@ export class NashirContact implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Manage contacts in nashir.ai',
+		description: 'Manage contacts and retrieve knowledge from nashir.ai',
 		defaults: { name: 'Nashir Contact', color: '#6366f1' },
 		inputs: ['main'],
 		outputs: ['main'],
@@ -34,6 +34,13 @@ export class NashirContact implements INodeType {
 						name: 'Get Conversation History',
 						value: 'getConversationHistory',
 						action: 'Fetch recent messages with a contact for AI agent context',
+					},
+					{
+						name: 'Search Knowledge Base',
+						value: 'searchKnowledge',
+						action: "Find relevant knowledge from the business's knowledge base for AI agent context",
+						description:
+							"Find relevant knowledge from the business's knowledge base for AI agent context",
 					},
 				],
 				default: 'getContact',
@@ -87,6 +94,31 @@ export class NashirContact implements INodeType {
 				description: 'How many recent messages to return (oldest → newest). Capped at 50 server-side.',
 				displayOptions: { show: { operation: ['getConversationHistory'] } },
 			},
+
+			// ── Search Knowledge Base fields ─────────────────────────────────────────
+			// Server-side: nashir.ai embeds the query (text-embedding-3-small) and
+			// runs vector similarity against the team's knowledge_chunks. The team
+			// is derived from the API key — never trusted from the request body.
+			{
+				displayName: 'Query',
+				name: 'query',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: '={{ $json.effective_message }}',
+				description:
+					"The customer's question or topic to search for in the knowledge base. Plain text — no embedding step required on your side.",
+				displayOptions: { show: { operation: ['searchKnowledge'] } },
+			},
+			{
+				displayName: 'Limit',
+				name: 'kbLimit',
+				type: 'number',
+				typeOptions: { minValue: 1, maxValue: 10 },
+				default: 4,
+				description: 'How many top chunks to return (1–10). Default 4 is a good balance for AI agent context.',
+				displayOptions: { show: { operation: ['searchKnowledge'] } },
+			},
 		],
 	};
 
@@ -121,6 +153,19 @@ export class NashirContact implements INodeType {
 						`/conversations/by-sender/${senderId}`,
 						undefined,
 						{ limit },
+					);
+
+				} else if (operation === 'searchKnowledge') {
+					const query = (this.getNodeParameter('query', i) as string).trim();
+					if (!query) {
+						throw new Error('Search Knowledge Base: query is required');
+					}
+					const limit = this.getNodeParameter('kbLimit', i, 4) as number;
+					responseData = await nashirApiRequest(
+						this,
+						'POST',
+						`/knowledge/search`,
+						{ query, limit },
 					);
 
 				} else {

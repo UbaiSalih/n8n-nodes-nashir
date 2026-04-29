@@ -35,6 +35,7 @@ n8n-nodes-nashir
 | Get Contact | Fetch contact details by phone number |
 | **Update Contact Tags** | Add tags to a contact (idempotent, comma-separated) |
 | **Get Conversation History** | Fetch recent messages by sender id for AI agent context (cross-platform: FB / IG / WhatsApp) |
+| **Search Knowledge Base** | Find relevant knowledge chunks from the business's knowledge base for AI agent context (server-side embedding) |
 
 ### Nashir Facebook
 
@@ -99,6 +100,16 @@ This workflow fetches the last 10 messages for an inbound WhatsApp number and pa
 ---
 
 ## Changelog
+
+### 0.6.0 — Apr 2026
+
+**New operation: Search Knowledge Base on `Nashir Contact`**
+
+- **Search Knowledge Base** on `Nashir Contact` — retrieve the top N most relevant chunks from the team's knowledge base. The customer passes plain text; nashir.ai handles embedding (OpenAI `text-embedding-3-small`) and vector similarity server-side. No `OPENAI_API_KEY` or Supabase credentials needed in n8n.
+- Inputs: `query` (required — the customer's question or topic) and `kbLimit` (default 4, max 10).
+- Returns `{ chunks: [{ id, content, metadata, similarity }, ...], count }`.
+- Backed by `POST /api/v1/knowledge/search` on nashir.ai.
+- Used by the v2 AI Auto Reply template to replace the four `Supabase Vector Store` + `OpenAI Embeddings` node pairs — knowledge retrieval is now a single nashir-native call.
 
 ### 0.5.0 — Apr 2026
 
