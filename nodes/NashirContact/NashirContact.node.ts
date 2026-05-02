@@ -101,8 +101,10 @@ export class NashirContact implements INodeType {
 
 			// ── Search Knowledge Base fields ─────────────────────────────────────────
 			// Server-side: nashir.ai embeds the query (text-embedding-3-small) and
-			// runs vector similarity against the team's knowledge_chunks. The team
-			// is derived from the API key — never trusted from the request body.
+			// runs vector similarity against the team's knowledge_chunks, scoped
+			// to the business. team_id is derived from the API key; business_id
+			// is supplied per-call so a team with multiple businesses doesn't
+			// leak knowledge across them.
 			{
 				displayName: 'Query',
 				name: 'query',
@@ -112,6 +114,17 @@ export class NashirContact implements INodeType {
 				placeholder: '={{ $json.effective_message }}',
 				description:
 					"The customer's question or topic to search for in the knowledge base. Plain text — no embedding step required on your side.",
+				displayOptions: { show: { operation: ['searchKnowledge'] } },
+			},
+			{
+				displayName: 'Business ID',
+				name: 'businessId',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: "={{ $('Webhook').first().json.body.business_id }}",
+				description:
+					'Business to scope the search to. The webhook payload includes business_id — wire it through with an expression. Leaving this empty is supported only against legacy backends; the current /api/v1/knowledge/search rejects requests without it.',
 				displayOptions: { show: { operation: ['searchKnowledge'] } },
 			},
 			{
@@ -165,11 +178,25 @@ export class NashirContact implements INodeType {
 						throw new Error('Search Knowledge Base: query is required');
 					}
 					const limit = this.getNodeParameter('kbLimit', i, 4) as number;
+					const businessIdRaw = (this.getNodeParameter('businessId', i, '') as string).trim();
+					const body: IDataObject = { query, limit };
+					if (businessIdRaw) {
+						const businessId = parseInt(businessIdRaw, 10);
+						if (!Number.isFinite(businessId) || businessId <= 0) {
+							throw new Error(
+								`Search Knowledge Base: businessId must be a positive integer, got "${businessIdRaw}"`,
+							);
+						}
+						body.business_id = businessId;
+					}
+					// If businessId is empty, omit it — old backends still accept the
+					// request. Once /api/v1/knowledge/search starts requiring business_id
+					// (S49 task 1), the absence here surfaces as a 400 from nashir.ai.
 					responseData = await nashirApiRequest(
 						this,
 						'POST',
 						`/knowledge/search`,
-						{ query, limit },
+						body,
 					);
 
 				} else {
