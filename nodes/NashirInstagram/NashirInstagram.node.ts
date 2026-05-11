@@ -89,6 +89,22 @@ export class NashirInstagram implements INodeType {
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
 			},
 
+			// ── Thumbnail (optional, Reels / feed video posts only) ──────────────
+			{
+				displayName: 'Thumbnail Binary Property',
+				name: 'thumbnailBinaryPropertyName',
+				type: 'string',
+				default: '',
+				description:
+					'Name of the binary property containing the cover image for Instagram Reels (optional). Meta constraints: JPG or PNG, recommended 9:16 (1080×1920). Template enforces a 2MB universal cap. Ignored on image posts and Stories — Meta\'s API does not accept cover_url for those types.',
+				displayOptions: {
+					show: {
+						operation: ['publishPost', 'schedulePost'],
+						postType: ['feed', 'reel'],
+					},
+				},
+			},
+
 			{
 				displayName: 'Alt Text',
 				name: 'altText',
@@ -180,6 +196,13 @@ export class NashirInstagram implements INodeType {
 						image_url: uploadedUrl,
 						publish_now: operation === 'publishPost',
 					};
+
+					// Optional Reels cover. Uploaded to nashir.ai storage; the server-side
+					// cron passes the resulting URL as `cover_url` on the IG REELS container.
+					const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
+					if (thumbnailProp) {
+						body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
+					}
 
 					if (altText) body.alt_text = altText;
 
