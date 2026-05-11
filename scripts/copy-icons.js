@@ -7,6 +7,7 @@ const nodes = [
   'NashirInstagram',
   'NashirLinkedIn',
   'NashirTelegram',
+  'NashirThreads',
   'NashirTikTok',
   'NashirWhatsApp',
   'NashirYouTube',
