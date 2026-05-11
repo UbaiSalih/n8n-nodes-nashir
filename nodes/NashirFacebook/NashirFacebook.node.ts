@@ -100,6 +100,17 @@ export class NashirFacebook implements INodeType {
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
 			},
 
+			// ── Thumbnail (optional, video posts only) ───────────────────────────
+			{
+				displayName: 'Thumbnail Binary Property',
+				name: 'thumbnailBinaryPropertyName',
+				type: 'string',
+				default: '',
+				description:
+					'Name of the binary property containing the cover image for video posts (optional). JPG/PNG, max 10MB, 1280×720 recommended. Silently ignored on image / text / non-video posts.',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+			},
+
 			// ── Link URL ────────────────────────────────────────────────────────────
 			{
 				displayName: 'Link URL',
@@ -201,6 +212,13 @@ export class NashirFacebook implements INodeType {
 						body.image_url = uploadedUrl;
 					} else if (linkUrl) {
 						body.image_url = linkUrl;
+					}
+
+					// Optional video thumbnail. Uploaded to nashir.ai storage; the server-side
+					// cron uses it as the `thumb` multipart param on /{page-id}/videos.
+					const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
+					if (thumbnailProp) {
+						body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
 					}
 
 					if (operation === 'schedulePost') {

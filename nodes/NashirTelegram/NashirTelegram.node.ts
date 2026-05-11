@@ -109,6 +109,17 @@ export class NashirTelegram implements INodeType {
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true] } },
 			},
 
+			// ── Thumbnail (optional, video posts only) ───────────────────────────
+			{
+				displayName: 'Thumbnail Binary Property',
+				name: 'thumbnailBinaryPropertyName',
+				type: 'string',
+				default: '',
+				description:
+					'Name of the binary property containing the cover image for video posts (optional). Telegram constraints: JPG only, max 200KB, max 320×320. Telegram does not auto-resize — oversized thumbnails are rejected by the Bot API. Silently ignored on photo / text posts.',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+			},
+
 			{
 				displayName: 'Send Silently',
 				name: 'silent',
@@ -186,6 +197,13 @@ export class NashirTelegram implements INodeType {
 					if (hasMedia) {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						body.image_url = await nashirUploadBinary(this, i, binaryProp);
+					}
+
+					// Optional video thumbnail. Uploaded to nashir.ai storage; the server-side
+					// cron passes the resulting URL as `thumbnail` to Telegram's sendVideo.
+					const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
+					if (thumbnailProp) {
+						body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
 					}
 
 					if (operation === 'schedulePost') {
