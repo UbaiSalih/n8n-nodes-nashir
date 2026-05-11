@@ -8,6 +8,16 @@ import {
 
 import { nashirApiRequest } from '../shared/api';
 
+// n8n types getNodeParameter as `string`, but at runtime the value can be a
+// number, boolean, or null — e.g. when an AI Agent invokes this as a tool, or
+// when an expression like `{{ $json.body.business_id }}` resolves to a JSON
+// number. Calling .trim() / .split() on a non-string then throws
+// "this.getNodeParameter(...).trim is not a function".
+function paramAsString(value: unknown): string {
+	if (value === null || value === undefined) return '';
+	return typeof value === 'string' ? value : String(value);
+}
+
 export class NashirContact implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir Contact',
@@ -149,12 +159,12 @@ export class NashirContact implements INodeType {
 				let responseData: IDataObject | IDataObject[];
 
 				if (operation === 'getContact') {
-					const phone = encodeURIComponent(this.getNodeParameter('phone', i) as string);
+					const phone = encodeURIComponent(paramAsString(this.getNodeParameter('phone', i)));
 					responseData = await nashirApiRequest(this, 'GET', `/contacts/${phone}`);
 
 				} else if (operation === 'updateTags') {
-					const phone = encodeURIComponent(this.getNodeParameter('phone', i) as string);
-					const tagsRaw = this.getNodeParameter('tags', i) as string;
+					const phone = encodeURIComponent(paramAsString(this.getNodeParameter('phone', i)));
+					const tagsRaw = paramAsString(this.getNodeParameter('tags', i));
 					const tags = tagsRaw
 						.split(',')
 						.map((t) => t.trim())
@@ -162,7 +172,7 @@ export class NashirContact implements INodeType {
 					responseData = await nashirApiRequest(this, 'POST', `/contacts/${phone}/tags`, { tags });
 
 				} else if (operation === 'getConversationHistory') {
-					const senderId = encodeURIComponent(this.getNodeParameter('senderId', i) as string);
+					const senderId = encodeURIComponent(paramAsString(this.getNodeParameter('senderId', i)));
 					const limit = this.getNodeParameter('limit', i, 20) as number;
 					responseData = await nashirApiRequest(
 						this,
@@ -173,12 +183,12 @@ export class NashirContact implements INodeType {
 					);
 
 				} else if (operation === 'searchKnowledge') {
-					const query = (this.getNodeParameter('query', i) as string).trim();
+					const query = paramAsString(this.getNodeParameter('query', i)).trim();
 					if (!query) {
 						throw new Error('Search Knowledge Base: query is required');
 					}
 					const limit = this.getNodeParameter('kbLimit', i, 4) as number;
-					const businessIdRaw = (this.getNodeParameter('businessId', i, '') as string).trim();
+					const businessIdRaw = paramAsString(this.getNodeParameter('businessId', i, '')).trim();
 					const body: IDataObject = { query, limit };
 					if (businessIdRaw) {
 						const businessId = parseInt(businessIdRaw, 10);
