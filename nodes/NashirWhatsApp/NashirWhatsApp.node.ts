@@ -74,6 +74,7 @@ export class NashirWhatsApp implements INodeType {
 					{ name: 'Text', value: 'text' },
 					{ name: 'Template', value: 'template' },
 					{ name: 'Media', value: 'media' },
+					{ name: 'Image (by URL)', value: 'image' },
 				],
 				default: 'text',
 				displayOptions: { show: { operation: ['sendMessage'] } },
@@ -98,6 +99,18 @@ export class NashirWhatsApp implements INodeType {
 				required: true,
 				description: 'Name of the binary property containing the media file',
 				displayOptions: { show: { operation: ['sendMessage'], messageType: ['media'] } },
+			},
+
+			// ── Image URL (reply-with-image) ────────────────────────────────────────
+			{
+				displayName: 'Image URL',
+				name: 'imageUrl',
+				type: 'string',
+				default: '',
+				required: true,
+				description:
+					'Public HTTPS URL of the image to send. WhatsApp fetches it directly (must be JPEG or PNG — WebP is not accepted for image messages). Free-form image is allowed inside the 24h customer-service window.',
+				displayOptions: { show: { operation: ['sendMessage'], messageType: ['image'] } },
 			},
 
 			// ── Reply / Mark as Read fields ─────────────────────────────────────────
@@ -277,6 +290,10 @@ export class NashirWhatsApp implements INodeType {
 
 					if (messageType === 'text' || messageType === 'template') {
 						body.content = this.getNodeParameter('content', i) as string;
+					} else if (messageType === 'image') {
+						// Send an image by URL — WhatsApp fetches the link directly
+						// (server forwards as Cloud API image:{link}). No binary upload.
+						body.image_url = this.getNodeParameter('imageUrl', i) as string;
 					} else {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						body.media_url = await nashirUploadBinary(this, i, binaryProp);
