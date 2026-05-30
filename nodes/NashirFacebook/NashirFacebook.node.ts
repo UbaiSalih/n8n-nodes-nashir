@@ -171,6 +171,17 @@ export class NashirFacebook implements INodeType {
 				required: true,
 				displayOptions: { show: { operation: ['replyMessage'] } },
 			},
+
+			// ── Image URL (reply-with-image) ────────────────────────────────────────
+			{
+				displayName: 'Image URL',
+				name: 'imageUrl',
+				type: 'string',
+				default: '',
+				description:
+					'Optional. If set, sends this image as a follow-up attachment after the text reply (reply-with-image). Must be a public HTTPS URL Meta can fetch. Leave empty for text-only.',
+				displayOptions: { show: { operation: ['replyMessage'] } },
+			},
 		],
 	};
 
@@ -250,7 +261,10 @@ export class NashirFacebook implements INodeType {
 					const accountId = this.getNodeParameter('account', i) as string;
 					const messageId = this.getNodeParameter('messageId', i) as string;
 					const replyText = this.getNodeParameter('replyText', i) as string;
-					responseData = await nashirApiRequest(this, 'POST', `/messages/${messageId}/reply`, { message: replyText, account_id: accountId });
+					const imageUrl = this.getNodeParameter('imageUrl', i, '') as string;
+					const replyBody: IDataObject = { message: replyText, account_id: accountId };
+					if (imageUrl) replyBody.image_url = imageUrl;
+					responseData = await nashirApiRequest(this, 'POST', `/messages/${messageId}/reply`, replyBody);
 				}
 
 				const rows = Array.isArray(responseData) ? responseData : [responseData];
