@@ -73,13 +73,14 @@ export class NashirFacebook implements INodeType {
 				displayName: 'Post Type',
 				name: 'postType',
 				type: 'options',
-				// Carousel restored: the backend now publishes a multi-photo GRID in one
-				// feed post via attached_media (saas-starter publishFacebookMultiPhoto on
-				// the shared images[] field). Story / Reel stay removed — no /photo_stories,
-				// /video_stories, or /video_reels publish path exists server-side yet.
+				// Carousel + Story are both backed server-side now: carousel → a multi-photo
+				// GRID via attached_media; story → a real 24h FB Story via photo_stories /
+				// video_stories (saas-starter publishToFacebook). Reel stays removed — no
+				// /video_reels publish path exists server-side yet.
 				options: [
 					{ name: 'Feed Post', value: 'feed' },
 					{ name: 'Carousel (multi-photo)', value: 'carousel' },
+					{ name: 'Story', value: 'story' },
 				],
 				default: 'feed',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
@@ -91,17 +92,18 @@ export class NashirFacebook implements INodeType {
 				name: 'binaryPropertyName',
 				type: 'string',
 				default: 'data',
-				description: 'Name of the binary property containing the media file to upload',
-				// Hidden for carousel — a multi-photo post is supplied as comma-separated URLs.
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true], postType: ['feed'] } },
+				description: 'Name of the binary property containing the media file to upload (the image or video for a story)',
+				// Shown for feed + story (when Attach Media is on); hidden for carousel,
+				// which is supplied as comma-separated URLs instead.
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true], postType: ['feed', 'story'] } },
 			},
 			{
 				displayName: 'Attach Media?',
 				name: 'hasMedia',
 				type: 'boolean',
 				default: false,
-				description: 'Whether to attach a media file to this post',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['feed'] } },
+				description: 'Whether to attach a media file. Required for a Story (Stories must have an image or video).',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['feed', 'story'] } },
 			},
 			{
 				displayName: 'Carousel Image URLs',
@@ -242,6 +244,15 @@ export class NashirFacebook implements INodeType {
 							throw new Error('Facebook multi-photo carousel needs at least 2 comma-separated image URLs.');
 						}
 						body.images = images;
+					} else if (postType === 'story') {
+						// Story requires media. Reuse the binary upload → image_url; the backend
+						// routes post_type='story' + image_url to photo_stories / video_stories.
+						// (The Visual Publisher FB-Story lane sets binaryPropertyName='media'.)
+						if (!hasMedia) {
+							throw new Error('Facebook Stories require media — enable "Attach Media?" and provide an image or video.');
+						}
+						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
+						body.image_url = await nashirUploadBinary(this, i, binaryProp);
 					} else {
 						if (hasMedia) {
 							const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
