@@ -69,11 +69,12 @@ export class NashirInstagram implements INodeType {
 				displayName: 'Post Type',
 				name: 'postType',
 				type: 'options',
+				// Story / Carousel removed: the backend has no media_type=STORIES path and
+				// no carousel/children branch — selecting them published a single feed/reel
+				// post. Re-add only when a real Story/Carousel publish path exists server-side.
 				options: [
 					{ name: 'Feed Post', value: 'feed' },
 					{ name: 'Reel', value: 'reel' },
-					{ name: 'Story', value: 'story' },
-					{ name: 'Carousel', value: 'carousel' },
 				],
 				default: 'feed',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
@@ -96,7 +97,7 @@ export class NashirInstagram implements INodeType {
 				type: 'string',
 				default: '',
 				description:
-					'Name of the binary property containing the cover image for Instagram Reels (optional). Meta constraints: JPG or PNG, recommended 9:16 (1080×1920). Template enforces a 2MB universal cap. Ignored on image posts and Stories — Meta\'s API does not accept cover_url for those types.',
+					'Name of the binary property containing the cover image for Instagram Reels (optional). Meta constraints: JPG or PNG, recommended 9:16 (1080×1920). Template enforces a 2MB universal cap. Ignored on image (feed) posts — Meta\'s API does not accept cover_url for those.',
 				displayOptions: {
 					show: {
 						operation: ['publishPost', 'schedulePost'],

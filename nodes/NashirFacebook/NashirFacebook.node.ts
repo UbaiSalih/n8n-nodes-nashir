@@ -73,10 +73,11 @@ export class NashirFacebook implements INodeType {
 				displayName: 'Post Type',
 				name: 'postType',
 				type: 'options',
+				// Story / Reel removed: the backend has no /photo_stories, /video_stories,
+				// or /video_reels endpoint — selecting them published a normal feed post.
+				// Re-add only when a real Story/Reel publish path exists server-side.
 				options: [
 					{ name: 'Feed Post', value: 'feed' },
-					{ name: 'Story', value: 'story' },
-					{ name: 'Reel', value: 'reel' },
 				],
 				default: 'feed',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
