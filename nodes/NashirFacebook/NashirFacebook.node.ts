@@ -73,11 +73,13 @@ export class NashirFacebook implements INodeType {
 				displayName: 'Post Type',
 				name: 'postType',
 				type: 'options',
-				// Story / Reel removed: the backend has no /photo_stories, /video_stories,
-				// or /video_reels endpoint — selecting them published a normal feed post.
-				// Re-add only when a real Story/Reel publish path exists server-side.
+				// Carousel restored: the backend now publishes a multi-photo GRID in one
+				// feed post via attached_media (saas-starter publishFacebookMultiPhoto on
+				// the shared images[] field). Story / Reel stay removed — no /photo_stories,
+				// /video_stories, or /video_reels publish path exists server-side yet.
 				options: [
 					{ name: 'Feed Post', value: 'feed' },
+					{ name: 'Carousel (multi-photo)', value: 'carousel' },
 				],
 				default: 'feed',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
@@ -90,7 +92,8 @@ export class NashirFacebook implements INodeType {
 				type: 'string',
 				default: 'data',
 				description: 'Name of the binary property containing the media file to upload',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true] } },
+				// Hidden for carousel — a multi-photo post is supplied as comma-separated URLs.
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true], postType: ['feed'] } },
 			},
 			{
 				displayName: 'Attach Media?',
@@ -98,7 +101,19 @@ export class NashirFacebook implements INodeType {
 				type: 'boolean',
 				default: false,
 				description: 'Whether to attach a media file to this post',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['feed'] } },
+			},
+			{
+				displayName: 'Carousel Image URLs',
+				name: 'carousel_images',
+				type: 'string',
+				typeOptions: { rows: 3 },
+				default: '',
+				required: true,
+				description:
+					'Comma-separated public image URLs for the multi-photo grid (2-20; photos only). ' +
+					'They render as a grid in a single Facebook feed post. URLs must be publicly reachable.',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['carousel'] } },
 			},
 
 			// ── Thumbnail (optional, video posts only) ───────────────────────────
@@ -218,19 +233,30 @@ export class NashirFacebook implements INodeType {
 						publish_now: operation === 'publishPost',
 					};
 
-					if (hasMedia) {
-						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
-						const uploadedUrl = await nashirUploadBinary(this, i, binaryProp);
-						body.image_url = uploadedUrl;
-					} else if (linkUrl) {
-						body.image_url = linkUrl;
-					}
+					if (postType === 'carousel') {
+						// Multi-photo grid via FB attached_media — comma-separated public URLs.
+						// No binary upload; photos only; 2-20 items.
+						const urlsRaw = this.getNodeParameter('carousel_images', i, '') as string;
+						const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
+						if (images.length < 2) {
+							throw new Error('Facebook multi-photo carousel needs at least 2 comma-separated image URLs.');
+						}
+						body.images = images;
+					} else {
+						if (hasMedia) {
+							const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
+							const uploadedUrl = await nashirUploadBinary(this, i, binaryProp);
+							body.image_url = uploadedUrl;
+						} else if (linkUrl) {
+							body.image_url = linkUrl;
+						}
 
-					// Optional video thumbnail. Uploaded to nashir.ai storage; the server-side
-					// cron uses it as the `thumb` multipart param on /{page-id}/videos.
-					const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
-					if (thumbnailProp) {
-						body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
+						// Optional video thumbnail. Uploaded to nashir.ai storage; the server-side
+						// cron uses it as the `thumb` multipart param on /{page-id}/videos.
+						const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
+						if (thumbnailProp) {
+							body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
+						}
 					}
 
 					if (operation === 'schedulePost') {
