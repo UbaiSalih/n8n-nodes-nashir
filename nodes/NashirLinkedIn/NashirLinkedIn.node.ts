@@ -111,6 +111,17 @@ export class NashirLinkedIn implements INodeType {
 				description: 'Name of the binary property containing the media file',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true] }, hide: { postType: ['carousel'] } },
 			},
+			{
+				displayName: 'Document Binary Property',
+				name: 'documentBinaryPropertyName',
+				type: 'string',
+				default: 'data',
+				required: true,
+				description:
+					'Name of the binary property containing the document file (PDF, PPTX, or DOCX) for a LinkedIn document post — ' +
+					'it renders as swipeable slides (the "LinkedIn carousel"). Organization pages only.',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['document'] } },
+			},
 
 			{
 				displayName: 'Scheduled At',
@@ -173,6 +184,11 @@ export class NashirLinkedIn implements INodeType {
 							throw new Error('LinkedIn carousel needs at least 2 comma-separated image URLs (organization pages only).');
 						}
 						body.images = images;
+					} else if (postType === 'document') {
+						// Document post (PDF "carousel") — upload the file binary → image_url
+						// (the misleading-but-functional field the backend reads as the doc URL).
+						const docProp = this.getNodeParameter('documentBinaryPropertyName', i, 'data') as string;
+						body.image_url = await nashirUploadBinary(this, i, docProp);
 					} else if (hasMedia) {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						body.image_url = await nashirUploadBinary(this, i, binaryProp);
