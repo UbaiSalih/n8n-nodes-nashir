@@ -69,12 +69,13 @@ export class NashirInstagram implements INodeType {
 				displayName: 'Post Type',
 				name: 'postType',
 				type: 'options',
-				// Story / Carousel removed: the backend has no media_type=STORIES path and
-				// no carousel/children branch — selecting them published a single feed/reel
-				// post. Re-add only when a real Story/Carousel publish path exists server-side.
+				// Story restored: the backend now routes post_type='story' to a real
+				// Instagram STORIES container (saas-starter publishToInstagram + migration
+				// 0169). Carousel stays removed — no carousel/children branch exists yet.
 				options: [
 					{ name: 'Feed Post', value: 'feed' },
 					{ name: 'Reel', value: 'reel' },
+					{ name: 'Story', value: 'story' },
 				],
 				default: 'feed',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
