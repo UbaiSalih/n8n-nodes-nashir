@@ -68,6 +68,7 @@ export class NashirLinkedIn implements INodeType {
 					{ name: 'Image Post', value: 'image' },
 					{ name: 'Document', value: 'document' },
 					{ name: 'Article', value: 'article' },
+					{ name: 'Carousel (MultiImage — organization pages)', value: 'carousel' },
 				],
 				default: 'text',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
@@ -78,7 +79,19 @@ export class NashirLinkedIn implements INodeType {
 				name: 'hasMedia',
 				type: 'boolean',
 				default: false,
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] }, hide: { postType: ['carousel'] } },
+			},
+			{
+				displayName: 'Carousel Image URLs',
+				name: 'carousel_images',
+				type: 'string',
+				typeOptions: { rows: 3 },
+				default: '',
+				required: true,
+				description:
+					'Comma-separated public image URLs for the LinkedIn MultiImage grid (2-20; organization pages only). ' +
+					'Photos render as a grid in a single post. URLs must be publicly reachable.',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['carousel'] } },
 			},
 
 			{
@@ -87,7 +100,7 @@ export class NashirLinkedIn implements INodeType {
 				type: 'string',
 				default: '',
 				description: 'Optional image URL to include in the post (used when Attach Media is off)',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] }, hide: { postType: ['carousel'] } },
 			},
 
 			{
@@ -96,7 +109,7 @@ export class NashirLinkedIn implements INodeType {
 				type: 'string',
 				default: 'data',
 				description: 'Name of the binary property containing the media file',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true] } },
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], hasMedia: [true] }, hide: { postType: ['carousel'] } },
 			},
 
 			{
@@ -151,7 +164,16 @@ export class NashirLinkedIn implements INodeType {
 						publish_now: operation === 'publishPost',
 					};
 
-					if (hasMedia) {
+					if (postType === 'carousel') {
+						// MultiImage carousel (organization pages only) — comma-separated public
+						// URLs → the shared images[] array. No binary upload; 2-20 items.
+						const urlsRaw = this.getNodeParameter('carousel_images', i, '') as string;
+						const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
+						if (images.length < 2) {
+							throw new Error('LinkedIn carousel needs at least 2 comma-separated image URLs (organization pages only).');
+						}
+						body.images = images;
+					} else if (hasMedia) {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						body.image_url = await nashirUploadBinary(this, i, binaryProp);
 					} else if (linkUrl) {
