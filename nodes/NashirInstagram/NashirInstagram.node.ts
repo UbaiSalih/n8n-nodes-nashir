@@ -69,13 +69,15 @@ export class NashirInstagram implements INodeType {
 				displayName: 'Post Type',
 				name: 'postType',
 				type: 'options',
-				// Story restored: the backend now routes post_type='story' to a real
-				// Instagram STORIES container (saas-starter publishToInstagram + migration
-				// 0169). Carousel stays removed — no carousel/children branch exists yet.
+				// Story + Carousel are both backed server-side now: post_type='story' → a
+				// real STORIES container; post_type='carousel' → the multi-step CAROUSEL
+				// flow (saas-starter publishInstagramCarousel on the shared images[] field).
+				// Carousel media is supplied as comma-separated URLs in the field below.
 				options: [
 					{ name: 'Feed Post', value: 'feed' },
 					{ name: 'Reel', value: 'reel' },
 					{ name: 'Story', value: 'story' },
+					{ name: 'Carousel', value: 'carousel' },
 				],
 				default: 'feed',
 				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
@@ -87,8 +89,22 @@ export class NashirInstagram implements INodeType {
 				type: 'string',
 				default: 'data',
 				required: true,
-				description: 'Name of the binary property containing the media file (required for all Instagram posts)',
-				displayOptions: { show: { operation: ['publishPost', 'schedulePost'] } },
+				description: 'Name of the binary property containing the media file (required for feed / reel / story). Carousel posts use the Carousel Image / Video URLs field instead.',
+				// Hidden for carousel — a carousel is supplied as comma-separated URLs,
+				// not a single binary, so the required binary field must not block it.
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['feed', 'reel', 'story'] } },
+			},
+			{
+				displayName: 'Carousel Image / Video URLs',
+				name: 'carousel_images',
+				type: 'string',
+				typeOptions: { rows: 3 },
+				default: '',
+				required: true,
+				description:
+					'Comma-separated public image/video URLs for the carousel (2-10 — Instagram caps carousels at 10). ' +
+					'Mixed photos and videos are allowed; order is the swipe order. URLs must be publicly reachable.',
+				displayOptions: { show: { operation: ['publishPost', 'schedulePost'], postType: ['carousel'] } },
 			},
 
 			// ── Thumbnail (optional, Reels / feed video posts only) ──────────────
@@ -196,28 +212,40 @@ export class NashirInstagram implements INodeType {
 					const accountId = this.getNodeParameter('account', i) as string;
 					const content = this.getNodeParameter('content', i) as string;
 					const postType = this.getNodeParameter('postType', i) as string;
-					const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
-					const altText = this.getNodeParameter('altText', i, '') as string;
-
-					const uploadedUrl = await nashirUploadBinary(this, i, binaryProp);
 
 					const body: IDataObject = {
 						content,
 						platforms: ['instagram'],
 						account_ids: [accountId],
 						post_type: postType,
-						image_url: uploadedUrl,
 						publish_now: operation === 'publishPost',
 					};
 
-					// Optional Reels cover. Uploaded to nashir.ai storage; the server-side
-					// cron passes the resulting URL as `cover_url` on the IG REELS container.
-					const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
-					if (thumbnailProp) {
-						body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
-					}
+					if (postType === 'carousel') {
+						// Carousel: comma-separated public URLs → the shared images[] array.
+						// No binary upload; mixed photo/video allowed; 2-10 items.
+						const urlsRaw = this.getNodeParameter('carousel_images', i, '') as string;
+						const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
+						if (images.length < 2) {
+							throw new Error('Instagram carousel needs at least 2 comma-separated image/video URLs.');
+						}
+						body.images = images;
+					} else {
+						// feed / reel / story — single media via binary upload (unchanged).
+						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
+						const altText = this.getNodeParameter('altText', i, '') as string;
 
-					if (altText) body.alt_text = altText;
+						body.image_url = await nashirUploadBinary(this, i, binaryProp);
+
+						// Optional Reels cover. Uploaded to nashir.ai storage; the server-side
+						// cron passes the resulting URL as `cover_url` on the IG REELS container.
+						const thumbnailProp = this.getNodeParameter('thumbnailBinaryPropertyName', i, '') as string;
+						if (thumbnailProp) {
+							body.thumbnail_url = await nashirUploadBinary(this, i, thumbnailProp);
+						}
+
+						if (altText) body.alt_text = altText;
+					}
 
 					if (operation === 'schedulePost') {
 						body.scheduled_at = this.getNodeParameter('scheduledAt', i) as string;
