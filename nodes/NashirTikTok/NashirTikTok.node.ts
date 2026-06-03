@@ -36,9 +36,67 @@ export class NashirTikTok implements INodeType {
 					{ name: 'Delete Post',    value: 'deletePost',    action: 'Delete a post' },
 					{ name: 'Get Posts',      value: 'getPosts',      action: 'Get posts' },
 					{ name: 'Publish Media',  value: 'publishVideo',  action: 'Publish a video or photo now' },
+					{ name: 'Publish Photos / Carousel', value: 'publishPhotos', action: 'Publish a photo carousel now' },
 					{ name: 'Schedule Media', value: 'scheduleVideo', action: 'Schedule a video or photo' },
 				],
 				default: 'publishVideo',
+			},
+
+			// ── Publish Photos / Carousel (publishPhotos) — self-contained fields ──
+			// Uniquely-named so publishVideo / scheduleVideo stay completely
+			// untouched. Sends post_type:'carousel' + a generic images[] array to
+			// /api/v1/posts (shared multi-image plumbing). No binary upload — the
+			// carousel is supplied as comma-separated public URLs.
+			{
+				displayName: 'Account',
+				name: 'photoAccount',
+				type: 'options',
+				typeOptions: { loadOptionsMethod: 'loadTikTokAccounts' },
+				default: '',
+				required: true,
+				displayOptions: { show: { operation: ['publishPhotos'] } },
+			},
+			{
+				displayName: 'Image URLs',
+				name: 'photoImageUrls',
+				type: 'string',
+				typeOptions: { rows: 3 },
+				default: '',
+				required: true,
+				description:
+					'Comma-separated public image URLs for the photo carousel (2-35). The first URL is the cover. ' +
+					'URLs must be publicly reachable — TikTok pulls them directly.',
+				displayOptions: { show: { operation: ['publishPhotos'] } },
+			},
+			{
+				displayName: 'Caption',
+				name: 'photoCaption',
+				type: 'string',
+				typeOptions: { rows: 4 },
+				default: '',
+				description: 'Post caption. The first line becomes the title (max 90 chars for photo posts).',
+				displayOptions: { show: { operation: ['publishPhotos'] } },
+			},
+			{
+				displayName: 'Privacy Level',
+				name: 'photoPrivacyLevel',
+				type: 'options',
+				options: [
+					{ name: 'Public to Everyone', value: 'PUBLIC_TO_EVERYONE' },
+					{ name: 'Friends Only',        value: 'MUTUAL_FOLLOW_FRIENDS' },
+					{ name: 'Only Me',             value: 'SELF_ONLY' },
+				],
+				default: 'PUBLIC_TO_EVERYONE',
+				required: true,
+				displayOptions: { show: { operation: ['publishPhotos'] } },
+			},
+			{
+				displayName: 'Allow Comments',
+				name: 'photoAllowComment',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to allow viewers to comment on this carousel',
+				displayOptions: { show: { operation: ['publishPhotos'] } },
 			},
 
 			// ── Account ──────────────────────────────────────────────────────────
@@ -260,6 +318,40 @@ export class NashirTikTok implements INodeType {
 					} else {
 						body.scheduled_at = new Date().toISOString();
 					}
+
+					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+				} else if (operation === 'publishPhotos') {
+					const accountId     = this.getNodeParameter('photoAccount', i) as string;
+					const caption       = this.getNodeParameter('photoCaption', i, '') as string;
+					const urlsRaw       = this.getNodeParameter('photoImageUrls', i, '') as string;
+					const privacy_level = this.getNodeParameter('photoPrivacyLevel', i) as string;
+					const allow_comment = this.getNodeParameter('photoAllowComment', i, false) as boolean;
+
+					const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
+					if (images.length < 2) {
+						throw new Error(
+							'Publish Photos / Carousel needs at least 2 comma-separated image URLs (the first is the cover).',
+						);
+					}
+
+					// Carousel rides the shared top-level `images` field — NOT image_url:
+					// the server re-uploads a non-storage image_url as .mp4 for TikTok,
+					// which would corrupt a photo URL. post_type:'carousel' gates the
+					// server-side validation (requires >= 2 image URLs).
+					const body: IDataObject = {
+						content: caption,
+						platforms: ['tiktok'],
+						account_ids: [accountId],
+						post_type: 'carousel',
+						images,
+						publish_now: true,
+						scheduled_at: new Date().toISOString(),
+						tiktok_options: {
+							privacy_level,
+							disable_comment: !allow_comment,
+							media_type: 'PHOTO',
+						},
+					};
 
 					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
 				} else if (operation === 'getPosts') {
