@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.14.0 — 2026-06-04
+
+### Added
+- **Binary carousel support** for Facebook, Instagram, LinkedIn, and TikTok
+  carousel / photo posts. The carousel operations now accept **uploaded image
+  binaries** in addition to pasted URLs: when the "Carousel Image URLs" /
+  "Image URLs" field is left empty, the node **auto-collects all `media*`
+  binaries** on the input item (`media`, `media_0`, `media_1`, … — first =
+  cover), uploads each via `/api/v1/upload`, and publishes them as a carousel.
+  This lets the Universal Publisher workflow build carousels from uploaded files
+  (previously only pre-pasted public URLs worked). Pasting comma-separated URLs
+  still works unchanged — **backward compatible**.
+  - Per-platform image-count limits enforced with clear errors:
+    **Facebook 2-20, Instagram 2-10, LinkedIn 2-20, TikTok 2-35** (min 2 all).
+  - Binary auto-collect is **images-only** — a non-image `media*` binary raises
+    a clear error (a single video uses the video post type).
+  - **LinkedIn personal pages**: native MultiImage carousels are
+    organization-only. When a carousel targets a personal LinkedIn account, the
+    node now detects it (via `/api/v1/accounts`) and **gracefully falls back to
+    posting the first image as a single image** — with a `warning` in the node
+    output — instead of failing.
+
+### Known follow-up (Phase 2 — workflow rebuild)
+- **TikTok photo format:** `/api/v1/upload` accepts WebP/GIF, but TikTok photo
+  posts reject those formats (JPEG/PNG only). The nodes do not convert or
+  pre-validate image format; the Phase 2 workflow validation should warn the
+  user when a WebP/GIF is uploaded for a TikTok carousel.
+
 ## 0.13.9 — 2026-06-04
 
 ### Fixed

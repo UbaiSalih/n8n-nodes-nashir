@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
 
 export class NashirTikTok implements INodeType {
 	description: INodeTypeDescription = {
@@ -326,12 +326,9 @@ export class NashirTikTok implements INodeType {
 					const privacy_level = this.getNodeParameter('photoPrivacyLevel', i) as string;
 					const allow_comment = this.getNodeParameter('photoAllowComment', i, false) as boolean;
 
-					const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
-					if (images.length < 2) {
-						throw new Error(
-							'Publish Photos / Carousel needs at least 2 comma-separated image URLs (the first is the cover).',
-						);
-					}
+					// Photo carousel (2-35, first = cover). Accepts pasted comma-separated URLs
+					// OR auto-collected media* image binaries.
+					const images = await resolveCarouselImages(this, i, urlsRaw, { min: 2, max: 35, platform: 'TikTok' });
 
 					// Carousel rides the shared top-level `images` field — NOT image_url:
 					// the server re-uploads a non-storage image_url as .mp4 for TikTok,

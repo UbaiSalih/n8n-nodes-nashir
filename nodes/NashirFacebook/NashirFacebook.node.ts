@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
 
 export class NashirFacebook implements INodeType {
 	description: INodeTypeDescription = {
@@ -235,14 +235,10 @@ export class NashirFacebook implements INodeType {
 					};
 
 					if (postType === 'carousel') {
-						// Multi-photo grid via FB attached_media — comma-separated public URLs.
-						// No binary upload; photos only; 2-20 items.
+						// Multi-photo grid via FB attached_media (photos only, 2-20). Accepts
+						// pasted comma-separated URLs OR auto-collected media* image binaries.
 						const urlsRaw = this.getNodeParameter('carousel_images', i, '') as string;
-						const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
-						if (images.length < 2) {
-							throw new Error('Facebook multi-photo carousel needs at least 2 comma-separated image URLs.');
-						}
-						body.images = images;
+						body.images = await resolveCarouselImages(this, i, urlsRaw, { min: 2, max: 20, platform: 'Facebook' });
 					} else if (postType === 'story') {
 						// Story requires media. Reuse the binary upload → image_url; the backend
 						// routes post_type='story' + image_url to photo_stories / video_stories.

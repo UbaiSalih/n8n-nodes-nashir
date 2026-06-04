@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages, getAccountPlatform } from '../shared/api';
 
 export class NashirLinkedIn implements INodeType {
 	description: INodeTypeDescription = {
@@ -165,6 +165,8 @@ export class NashirLinkedIn implements INodeType {
 					const hasMedia = this.getNodeParameter('hasMedia', i, false) as boolean;
 					const linkUrl = this.getNodeParameter('linkUrl', i, '') as string;
 
+					let carouselWarning: string | null = null;
+
 					const body: IDataObject = {
 						content,
 						platforms: ['linkedin'],
@@ -174,14 +176,23 @@ export class NashirLinkedIn implements INodeType {
 					};
 
 					if (postType === 'carousel') {
-						// MultiImage carousel (organization pages only) — comma-separated public
-						// URLs → the shared images[] array. No binary upload; 2-20 items.
+						// MultiImage carousel (organization pages only, 2-20). Accepts pasted
+						// comma-separated URLs OR auto-collected media* image binaries.
 						const urlsRaw = this.getNodeParameter('carousel_images', i, '') as string;
-						const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
-						if (images.length < 2) {
-							throw new Error('LinkedIn carousel needs at least 2 comma-separated image URLs (organization pages only).');
+						const images = await resolveCarouselImages(this, i, urlsRaw, { min: 2, max: 20, platform: 'LinkedIn' });
+						// Personal LinkedIn cannot post a native MultiImage carousel (org pages
+						// only) and the backend hard-errors it. The async publish means the node
+						// can't catch that at execute time, so detect a personal account here and
+						// gracefully fall back to a single image (the first / cover).
+						const accountPlatform = await getAccountPlatform(this, accountId);
+						if (accountPlatform === 'linkedin') {
+							body.image_url = images[0];
+							body.post_type = 'feed';
+							carouselWarning =
+								'LinkedIn carousel requires an organization page; posted the first image as a single image instead.';
+						} else {
+							body.images = images;
 						}
-						body.images = images;
 					} else if (postType === 'document') {
 						// Document post (PDF "carousel") — upload the file binary → image_url
 						// (the misleading-but-functional field the backend reads as the doc URL).
@@ -201,6 +212,9 @@ export class NashirLinkedIn implements INodeType {
 					}
 
 					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					if (carouselWarning && responseData && !Array.isArray(responseData)) {
+						responseData = { ...responseData, warning: carouselWarning };
+					}
 				} else if (operation === 'getPosts') {
 					responseData = await nashirApiRequest(this, 'GET', '/posts', undefined, { platform: 'linkedin' });
 				} else {

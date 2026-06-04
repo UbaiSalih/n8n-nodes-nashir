@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
 
 export class NashirInstagram implements INodeType {
 	description: INodeTypeDescription = {
@@ -221,14 +221,11 @@ export class NashirInstagram implements INodeType {
 					};
 
 					if (postType === 'carousel') {
-						// Carousel: comma-separated public URLs → the shared images[] array.
-						// No binary upload; mixed photo/video allowed; 2-10 items.
+						// Carousel (2-10). Accepts pasted comma-separated URLs OR auto-collected
+						// media* image binaries. (Binary auto-collect is images-only; a mixed
+						// photo+video carousel via pasted URLs still works server-side.)
 						const urlsRaw = this.getNodeParameter('carousel_images', i, '') as string;
-						const images = urlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
-						if (images.length < 2) {
-							throw new Error('Instagram carousel needs at least 2 comma-separated image/video URLs.');
-						}
-						body.images = images;
+						body.images = await resolveCarouselImages(this, i, urlsRaw, { min: 2, max: 10, platform: 'Instagram' });
 					} else {
 						// feed / reel / story — single media via binary upload (unchanged).
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
