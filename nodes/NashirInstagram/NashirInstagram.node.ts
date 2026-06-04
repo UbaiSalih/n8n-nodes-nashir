@@ -100,7 +100,6 @@ export class NashirInstagram implements INodeType {
 				type: 'string',
 				typeOptions: { rows: 3 },
 				default: '',
-				required: true,
 				description:
 					'Comma-separated public image/video URLs for the carousel (2-10 — Instagram caps carousels at 10). ' +
 					'Mixed photos and videos are allowed; order is the swipe order. URLs must be publicly reachable.',

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.13.9 — 2026-06-04
+
+### Fixed
+- **Regression (introduced across 0.13.2–0.13.8): media-URL fields showed a spurious
+  "Parameter is required" error on existing nodes.** The carousel/photo PRs added
+  comma-separated URL fields that were `required: true` with an empty default:
+  - NashirLinkedIn → **Carousel Image URLs** (`carousel_images`)
+  - NashirFacebook → **Carousel Image URLs** (`carousel_images`)
+  - NashirInstagram → **Carousel Image / Video URLs** (`carousel_images`)
+  - NashirTikTok → **Image URLs** (`photoImageUrls`)
+
+  These are only shown for `postType: carousel` (or TikTok's **Publish Photos**
+  operation). But when the controlling parameter is set via an **expression**
+  (e.g. the Universal Publisher template's `postType` expression), n8n cannot
+  evaluate the display condition at editor time, so it shows the field and flags
+  the empty required value — surfacing a red **"Parameter … is required"** error on
+  the LinkedIn/Facebook/Instagram/TikTok nodes regardless of the actual post type.
+
+  **Fix:** removed `required: true` from those 4 fields (and from NashirLinkedIn's
+  **Document Binary Property** for consistency — same conditional pattern, masked
+  only by its non-empty `'data'` default). The fields remain scoped via
+  `displayOptions`, and **execute-time validation is unchanged** — running a
+  carousel/photo post without enough URLs still fails fast with a clear message
+  (e.g. _"LinkedIn carousel needs at least 2 comma-separated image URLs"_). No
+  behavior change for valid posts; the spurious editor error is gone.
+
 ## 0.12.0 — 2026-05-30
 
 ### Added

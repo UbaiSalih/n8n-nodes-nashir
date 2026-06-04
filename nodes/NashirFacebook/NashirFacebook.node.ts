@@ -111,7 +111,6 @@ export class NashirFacebook implements INodeType {
 				type: 'string',
 				typeOptions: { rows: 3 },
 				default: '',
-				required: true,
 				description:
 					'Comma-separated public image URLs for the multi-photo grid (2-20; photos only). ' +
 					'They render as a grid in a single Facebook feed post. URLs must be publicly reachable.',

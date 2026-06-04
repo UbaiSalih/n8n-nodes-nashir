@@ -62,7 +62,6 @@ export class NashirTikTok implements INodeType {
 				type: 'string',
 				typeOptions: { rows: 3 },
 				default: '',
-				required: true,
 				description:
 					'Comma-separated public image URLs for the photo carousel (2-35). The first URL is the cover. ' +
 					'URLs must be publicly reachable — TikTok pulls them directly.',

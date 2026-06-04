@@ -87,7 +87,6 @@ export class NashirLinkedIn implements INodeType {
 				type: 'string',
 				typeOptions: { rows: 3 },
 				default: '',
-				required: true,
 				description:
 					'Comma-separated public image URLs for the LinkedIn MultiImage grid (2-20; organization pages only). ' +
 					'Photos render as a grid in a single post. URLs must be publicly reachable.',
@@ -116,7 +115,6 @@ export class NashirLinkedIn implements INodeType {
 				name: 'documentBinaryPropertyName',
 				type: 'string',
 				default: 'data',
-				required: true,
 				description:
 					'Name of the binary property containing the document file (PDF, PPTX, or DOCX) for a LinkedIn document post — ' +
 					'it renders as swipeable slides (the "LinkedIn carousel"). Organization pages only.',
