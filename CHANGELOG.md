@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.14.3 — 2026-06-06
+
+### Changed
+- **NashirTikTok → "Publish Photos / Carousel"** now accepts a **single image**
+  (minimum lowered from 2 to 1). TikTok's API publishes a 1-image photo post —
+  empirically verified 2026-06-06 (init returned `ok` + `PUBLISH_COMPLETE` for
+  `photo_images` of length 1); the old 2-image minimum was our own design choice,
+  not a platform limit. One URL/binary = a single photo post; 2+ = a carousel.
+  Auto-music (Add Music, default ON) applies to single photos too. For a single
+  image the node now **omits** `post_type:'carousel'` so the server's carousel
+  (≥2) validation doesn't reject it; 2+ images still send `post_type:'carousel'`
+  unchanged. Pairs with the nashir.ai backend change allowing a 1-image `images`
+  array for TikTok-only posts. **No change to other platforms' carousels** (FB/IG/
+  LinkedIn still require ≥2). Universal Publisher template updated to route a
+  single uploaded image to TikTok instead of skipping it.
+
 ## 0.14.2 — 2026-06-05
 
 ### Added

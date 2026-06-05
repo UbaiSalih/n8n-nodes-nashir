@@ -36,7 +36,7 @@ export class NashirTikTok implements INodeType {
 					{ name: 'Delete Post',    value: 'deletePost',    action: 'Delete a post' },
 					{ name: 'Get Posts',      value: 'getPosts',      action: 'Get posts' },
 					{ name: 'Publish Media',  value: 'publishVideo',  action: 'Publish a video or photo now' },
-					{ name: 'Publish Photos / Carousel', value: 'publishPhotos', action: 'Publish a photo carousel now' },
+					{ name: 'Publish Photos / Carousel', value: 'publishPhotos', action: 'Publish a photo post or carousel now' },
 					{ name: 'Schedule Media', value: 'scheduleVideo', action: 'Schedule a video or photo' },
 				],
 				default: 'publishVideo',
@@ -63,7 +63,8 @@ export class NashirTikTok implements INodeType {
 				typeOptions: { rows: 3 },
 				default: '',
 				description:
-					'Comma-separated public image URLs for the photo carousel (2-35). The first URL is the cover. ' +
+					'Comma-separated public image URLs for the photo post (1-35). One URL = a single ' +
+					'photo post; 2+ = a carousel. The first URL is the cover. ' +
 					'URLs must be publicly reachable — TikTok pulls them directly.',
 				displayOptions: { show: { operation: ['publishPhotos'] } },
 			},
@@ -352,19 +353,23 @@ export class NashirTikTok implements INodeType {
 					const allow_comment = this.getNodeParameter('photoAllowComment', i, false) as boolean;
 					const auto_add_music = this.getNodeParameter('photoAutoAddMusic', i, true) as boolean;
 
-					// Photo carousel (2-35, first = cover). Accepts pasted comma-separated URLs
-					// OR auto-collected media* image binaries.
-					const images = await resolveCarouselImages(this, i, urlsRaw, { min: 2, max: 35, platform: 'TikTok' });
+					// Photo post (1-35, first = cover). Accepts pasted comma-separated URLs
+					// OR auto-collected media* image binaries. TikTok accepts a SINGLE
+					// image (verified 2026-06-06) — min is 1, not 2.
+					const images = await resolveCarouselImages(this, i, urlsRaw, { min: 1, max: 35, platform: 'TikTok' });
 
-					// Carousel rides the shared top-level `images` field — NOT image_url:
+					// Images ride the shared top-level `images` field — NOT image_url:
 					// the server re-uploads a non-storage image_url as .mp4 for TikTok,
 					// which would corrupt a photo URL. post_type:'carousel' gates the
-					// server-side validation (requires >= 2 image URLs).
+					// server-side carousel validation (requires >= 2 image URLs), so it
+					// is sent ONLY for a true 2+ carousel. A single image is a plain
+					// photo post — omit post_type so the server's carousel>=2 gate
+					// doesn't reject it (the server allows images.length 1 for TikTok).
 					const body: IDataObject = {
 						content: caption,
 						platforms: ['tiktok'],
 						account_ids: [accountId],
-						post_type: 'carousel',
+						...(images.length >= 2 ? { post_type: 'carousel' } : {}),
 						images,
 						publish_now: true,
 						scheduled_at: new Date().toISOString(),
