@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.1 — 2026-06-05
+
+### Added
+- **NashirTikTok → "Add Music" toggle** (`photoAutoAddMusic`) on the **Publish
+  Photos / Carousel** operation. When on (the **default**), TikTok automatically
+  adds background music to the photo slideshow — sent as
+  `tiktok_options.auto_add_music` (the backend already forwarded this for the
+  PHOTO path). TikTok selects the track; a specific song can't be chosen via the
+  API. Shown only for `publishPhotos` — video posts carry their own audio and
+  TikTok's slideshow-music flag doesn't apply.
+
 ## 0.14.0 — 2026-06-04
 
 ### Added

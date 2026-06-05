@@ -97,6 +97,16 @@ export class NashirTikTok implements INodeType {
 				description: 'Whether to allow viewers to comment on this carousel',
 				displayOptions: { show: { operation: ['publishPhotos'] } },
 			},
+			{
+				displayName: 'Add Music',
+				name: 'photoAutoAddMusic',
+				type: 'boolean',
+				default: true,
+				description:
+					'Whether to let TikTok automatically add background music to the photo slideshow. ' +
+					'TikTok selects the track — a specific song cannot be chosen via the API.',
+				displayOptions: { show: { operation: ['publishPhotos'] } },
+			},
 
 			// ── Account ──────────────────────────────────────────────────────────
 			{
@@ -325,6 +335,7 @@ export class NashirTikTok implements INodeType {
 					const urlsRaw       = this.getNodeParameter('photoImageUrls', i, '') as string;
 					const privacy_level = this.getNodeParameter('photoPrivacyLevel', i) as string;
 					const allow_comment = this.getNodeParameter('photoAllowComment', i, false) as boolean;
+					const auto_add_music = this.getNodeParameter('photoAutoAddMusic', i, true) as boolean;
 
 					// Photo carousel (2-35, first = cover). Accepts pasted comma-separated URLs
 					// OR auto-collected media* image binaries.
@@ -345,6 +356,7 @@ export class NashirTikTok implements INodeType {
 						tiktok_options: {
 							privacy_level,
 							disable_comment: !allow_comment,
+							auto_add_music,
 							media_type: 'PHOTO',
 						},
 					};
