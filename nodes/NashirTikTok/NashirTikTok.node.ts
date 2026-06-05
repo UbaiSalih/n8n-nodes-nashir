@@ -185,6 +185,19 @@ export class NashirTikTok implements INodeType {
 				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
 			},
 
+			// ── Cover frame (video posts only) ────────────────────────────────────
+			{
+				displayName: 'Cover Frame (ms)',
+				name: 'video_cover_timestamp_ms',
+				type: 'number',
+				default: 2000,
+				description:
+					'Millisecond offset into the video for the cover frame (the still shown as the post thumbnail). ' +
+					'TikTok cannot accept a custom cover image via the API — only a frame timestamp — so this picks which ' +
+					'video frame becomes the cover. Default 2000 = 2 seconds in. Ignored for photo posts.',
+				displayOptions: { show: { operation: ['publishVideo', 'scheduleVideo'] } },
+			},
+
 			// ── Brand / commercial content ────────────────────────────────────────
 			{
 				displayName: 'Content Disclosure',
@@ -289,6 +302,7 @@ export class NashirTikTok implements INodeType {
 					const brand_branded_content_toggle = brand_content_toggle
 						? (this.getNodeParameter('brand_branded_content_toggle', i, false) as boolean)
 						: false;
+					const video_cover_timestamp_ms    = this.getNodeParameter('video_cover_timestamp_ms', i, 2000) as number;
 					const carousel_images_raw         = this.getNodeParameter('carousel_images', i, '') as string;
 
 					// Upload binary and auto-detect media type from mimeType
@@ -318,6 +332,7 @@ export class NashirTikTok implements INodeType {
 							brand_organic_toggle,
 							brand_branded_content_toggle,
 							media_type,
+							...(media_type === 'VIDEO' ? { video_cover_timestamp_ms } : {}),
 							...(carousel_images?.length ? { carousel_images } : {}),
 						},
 					};

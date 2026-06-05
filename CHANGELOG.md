@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.2 — 2026-06-05
+
+### Added
+- **NashirTikTok → "Cover Frame (ms)"** (`video_cover_timestamp_ms`) on the
+  **Publish Media** / **Schedule Media** (video) operations. A millisecond
+  offset selecting which video frame becomes the post cover/thumbnail.
+  **Default 2000 (2 seconds in.)** TikTok cannot accept a custom cover *image*
+  via the API — only a frame timestamp — so this is the only cover control
+  TikTok exposes. Sent as `tiktok_options.video_cover_timestamp_ms` for VIDEO
+  media only (ignored for photo carousels). The backend publisher forwards it
+  to TikTok's video init `post_info.video_cover_timestamp_ms`, **omitting it
+  when absent** so non-node paths fall back to TikTok's first-frame default
+  (no regression). Closes the standing P1 (TikTok cover-frame was never wired).
+
 ## 0.14.1 — 2026-06-05
 
 ### Added
