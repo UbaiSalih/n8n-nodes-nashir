@@ -146,6 +146,26 @@ export class NashirContact implements INodeType {
 				description: 'How many top chunks to return (1–10). Default 4 is a good balance for AI agent context.',
 				displayOptions: { show: { operation: ['searchKnowledge'] } },
 			},
+			{
+				displayName: 'Channel',
+				name: 'platform',
+				type: 'string',
+				default: '',
+				placeholder: "={{ $('Webhook').first().json.body.platform }}",
+				description:
+					"Optional. The channel this question arrived on (whatsapp / facebook / instagram). Logged with the retrieval event so the merchant's \"Teach Your Bot\" gap list can show which channel a missed question came from. Safe to leave empty.",
+				displayOptions: { show: { operation: ['searchKnowledge'] } },
+			},
+			{
+				displayName: 'Raw Customer Message',
+				name: 'rawMessage',
+				type: 'string',
+				default: '',
+				placeholder: "={{ $('Webhook').first().json.body.message }}",
+				description:
+					"Optional. The customer's verbatim message, for when Query has been rewritten upstream (e.g. brand-first KB extraction). Logged so the gap list shows what the customer actually typed. Server falls back to Query if empty.",
+				displayOptions: { show: { operation: ['searchKnowledge'] } },
+			},
 		],
 	};
 
@@ -199,6 +219,12 @@ export class NashirContact implements INodeType {
 						}
 						body.business_id = businessId;
 					}
+					// "Teach Your Bot" gap-logging enrichment — optional. Forwarded to
+					// /api/v1/knowledge/search → retrieval_logs.{platform, raw_message}.
+					const platform = paramAsString(this.getNodeParameter('platform', i, '')).trim();
+					const rawMessage = paramAsString(this.getNodeParameter('rawMessage', i, '')).trim();
+					if (platform) body.platform = platform;
+					if (rawMessage) body.raw_message = rawMessage;
 					// If businessId is empty, omit it — old backends still accept the
 					// request. Once /api/v1/knowledge/search starts requiring business_id
 					// (S49 task 1), the absence here surfaces as a 400 from nashir.ai.

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.4 — 2026-06-08
+
+### Added
+- **NashirContact → Search Knowledge Base** gains two optional fields,
+  **Channel** (`platform`) and **Raw Customer Message** (`rawMessage`). When set,
+  they are forwarded in the `/api/v1/knowledge/search` request body and logged on
+  the server's `retrieval_logs` event (columns `platform` / `raw_message`,
+  migration 0180). This powers the merchant-facing "Teach Your Bot" knowledge-gap
+  list — so a missed question can show which channel it came in on and the
+  customer's verbatim text (the `query` may have been rewritten upstream by a
+  brand-first KB extraction). **Fully backward-compatible**: both fields default
+  to empty and are omitted from the request when blank, so existing workflows
+  behave byte-identically until wired.
+
 ## 0.14.3 — 2026-06-06
 
 ### Changed
