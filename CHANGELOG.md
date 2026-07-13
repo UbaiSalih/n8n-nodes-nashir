@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0 — 2026-07-13
 
 ### Added
 - **Publish confirmation — every posting node now reflects REAL delivery, not
