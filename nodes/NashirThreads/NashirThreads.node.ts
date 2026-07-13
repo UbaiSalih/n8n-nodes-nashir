@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirPublishPost, nashirUploadBinary } from '../shared/api';
 
 // S67 — Threads is publish-only at v0.10.0. Inbox / replies / insights /
 // mentions / threading / carousels are deferred (require additional Meta App
@@ -167,7 +167,7 @@ export class NashirThreads implements INodeType {
 					body.scheduled_at = new Date().toISOString();
 				}
 
-				const responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+				const responseData = await nashirPublishPost(this, body);
 				const rows = Array.isArray(responseData) ? responseData : [responseData];
 				returnData.push(...rows.map((d) => ({ json: d, pairedItem: i })));
 			} catch (error) {

@@ -4,7 +4,10 @@ import {
 	IHttpRequestMethods,
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
+	NodeOperationError,
 } from 'n8n-workflow';
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 type AnyContext = IExecuteFunctions | ILoadOptionsFunctions;
 
@@ -72,6 +75,84 @@ export async function nashirApiRequest(
 	} catch (error) {
 		throwFriendlyError(error as RequestError, endpoint);
 	}
+}
+
+/**
+ * FIX 2 (ticket #270) — poll GET /posts/{id} until the post reaches a terminal
+ * state (published | failed). Returns { terminal:false } if the wait budget is
+ * exhausted first. Defaults are sized for Instagram video, which can take a few
+ * minutes to transcode and publish across the nashir cron's per-minute ticks.
+ */
+export async function pollPostUntilTerminal(
+	ctx: IExecuteFunctions,
+	postId: number | string,
+	opts?: { intervalMs?: number; maxWaitMs?: number },
+): Promise<{ terminal: boolean; status?: string; lastError?: string; data: IDataObject }> {
+	const intervalMs = opts?.intervalMs ?? 5000; // 5 s between polls
+	const maxWaitMs = opts?.maxWaitMs ?? 6 * 60 * 1000; // 6 min total budget
+	const deadline = Date.now() + maxWaitMs;
+	let last: IDataObject = {};
+	while (Date.now() < deadline) {
+		const resp = (await nashirApiRequest(ctx, 'GET', `/posts/${postId}`)) as IDataObject;
+		const data = ((resp.data as IDataObject) ?? resp) as IDataObject;
+		last = data;
+		const status = data.status as string | undefined;
+		if (status === 'published') return { terminal: true, status, data };
+		if (status === 'failed') {
+			return { terminal: true, status, lastError: (data.lastError as string) ?? undefined, data };
+		}
+		await sleep(intervalMs);
+	}
+	return { terminal: false, status: last.status as string | undefined, data: last };
+}
+
+/**
+ * FIX 2 (ticket #270) — create a post, then (when N8N_STATUS_POLL_ENABLED=true)
+ * poll it to a terminal status so the node reflects REAL delivery rather than
+ * going green on the 201 the API returns at schedule time (the "green node"
+ * false positive). Flag off → original behaviour (return the 201 body).
+ *
+ *   published → return the terminal row (node stays green, with real data)
+ *   failed    → throw NodeOperationError with last_error (node goes red)
+ *   budget exhausted → throw "not confirmed / still processing" (NOT green)
+ *
+ * Genuinely future-scheduled posts (scheduled_at > ~now) are NOT polled — they
+ * are correctly queued and won't publish during this execution.
+ */
+export async function nashirPublishPost(
+	ctx: IExecuteFunctions,
+	body: IDataObject,
+): Promise<IDataObject | IDataObject[]> {
+	const created = (await nashirApiRequest(ctx, 'POST', '/posts', body)) as IDataObject;
+	if (process.env.N8N_STATUS_POLL_ENABLED !== 'true') return created;
+
+	// Skip the wait for genuinely future-scheduled posts — they're correctly
+	// queued and won't reach a terminal state within this execution.
+	const scheduledAt = body.scheduled_at as string | undefined;
+	if (scheduledAt) {
+		const t = Date.parse(scheduledAt);
+		if (Number.isFinite(t) && t > Date.now() + 2 * 60 * 1000) return created;
+	}
+
+	const postId = ((created.data as IDataObject)?.id ?? created.id) as number | string | undefined;
+	if (postId == null) return created; // nothing to poll against — return as-is
+
+	const outcome = await pollPostUntilTerminal(ctx, postId);
+	if (outcome.terminal && outcome.status === 'failed') {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`Publish failed: ${outcome.lastError ?? 'unknown error'}`,
+			{ description: `nashir post ${postId} finished with status=failed.` },
+		);
+	}
+	if (!outcome.terminal) {
+		throw new NodeOperationError(
+			ctx.getNode(),
+			`Publish not confirmed — post ${postId} is still "${outcome.status ?? 'processing'}" after the wait budget. It may still publish; check nashir.ai before retrying.`,
+			{ description: 'Status-poll budget exhausted before a terminal state.' },
+		);
+	}
+	return outcome.data ?? created; // published → reflect the terminal row
 }
 
 /**

@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Publish confirmation — every posting node now reflects REAL delivery, not
+  just acceptance** (ticket #270, "Fix 2"). `POST /api/v1/posts` returns `201`
+  at *schedule* time (`status='scheduled'`), long before the nashir cron
+  actually publishes to the platform — so a bare `201` made the node go green
+  even when the post later failed (the "green node" false positive; a 25 MB
+  video to Instagram + Telegram silently failed while the node reported
+  success). New shared helpers `nashirPublishPost` + `pollPostUntilTerminal`
+  (`nodes/shared/api.ts`) poll `GET /api/v1/posts/{id}` after creation until the
+  post reaches a terminal state: **published → node stays green** (returns the
+  terminal row), **failed → node throws with the server's `last_error`** (node
+  goes red), **wait-budget exhausted → node throws "not confirmed / still
+  processing"** (never a false green). Wired into the Publish (and Schedule)
+  operations of all 8 `POST /posts` call sites across Facebook, Instagram,
+  LinkedIn, Telegram, Threads, TikTok, and YouTube.
+- **Gated behind `N8N_STATUS_POLL_ENABLED`** — set that env var to `true` on the
+  n8n host (ops-x9b) to turn it on. **Default OFF**: when the var is unset the
+  nodes behave byte-identically to before (return the `201` body immediately),
+  so deploying this code is a no-op until the flag is set. Genuinely
+  future-scheduled posts (`scheduled_at` beyond ~now) are never polled — they
+  return green immediately, since they won't publish during the execution.
+  Poll defaults: 5 s interval, 6-minute total budget (sized for Instagram video
+  transcode + publish across the cron's per-minute ticks).
+
 ## 0.14.4 — 2026-06-08
 
 ### Added

@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirPublishPost, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
 
 export class NashirTikTok implements INodeType {
 	description: INodeTypeDescription = {
@@ -344,7 +344,7 @@ export class NashirTikTok implements INodeType {
 						body.scheduled_at = new Date().toISOString();
 					}
 
-					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					responseData = await nashirPublishPost(this, body);
 				} else if (operation === 'publishPhotos') {
 					const accountId     = this.getNodeParameter('photoAccount', i) as string;
 					const caption       = this.getNodeParameter('photoCaption', i, '') as string;
@@ -381,7 +381,7 @@ export class NashirTikTok implements INodeType {
 						},
 					};
 
-					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					responseData = await nashirPublishPost(this, body);
 				} else if (operation === 'getPosts') {
 					responseData = await nashirApiRequest(this, 'GET', '/posts', undefined, { platform: 'tiktok' });
 				} else {

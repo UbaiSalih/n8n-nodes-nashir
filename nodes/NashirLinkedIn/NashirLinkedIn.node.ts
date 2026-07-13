@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages, getAccountPlatform } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirPublishPost, nashirUploadBinary, resolveCarouselImages, getAccountPlatform } from '../shared/api';
 
 export class NashirLinkedIn implements INodeType {
 	description: INodeTypeDescription = {
@@ -211,7 +211,7 @@ export class NashirLinkedIn implements INodeType {
 						body.scheduled_at = new Date().toISOString();
 					}
 
-					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					responseData = await nashirPublishPost(this, body);
 					if (carouselWarning && responseData && !Array.isArray(responseData)) {
 						responseData = { ...responseData, warning: carouselWarning };
 					}

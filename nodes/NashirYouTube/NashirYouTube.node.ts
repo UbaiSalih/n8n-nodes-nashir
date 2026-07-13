@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirPublishPost, nashirUploadBinary } from '../shared/api';
 
 export class NashirYouTube implements INodeType {
 	description: INodeTypeDescription = {
@@ -268,7 +268,7 @@ export class NashirYouTube implements INodeType {
 						body.scheduled_at = new Date().toISOString();
 					}
 
-					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					responseData = await nashirPublishPost(this, body);
 				} else if (operation === 'getVideos') {
 					responseData = await nashirApiRequest(this, 'GET', '/posts', undefined, { platform: 'youtube' });
 				} else {

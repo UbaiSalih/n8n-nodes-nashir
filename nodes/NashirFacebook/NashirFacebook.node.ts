@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirPublishPost, nashirUploadBinary, resolveCarouselImages } from '../shared/api';
 
 export class NashirFacebook implements INodeType {
 	description: INodeTypeDescription = {
@@ -271,7 +271,7 @@ export class NashirFacebook implements INodeType {
 						body.scheduled_at = new Date().toISOString();
 					}
 
-					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					responseData = await nashirPublishPost(this, body);
 				} else if (operation === 'getPosts') {
 					responseData = await nashirApiRequest(this, 'GET', '/posts', undefined, { platform: 'facebook' });
 				} else if (operation === 'deletePost') {

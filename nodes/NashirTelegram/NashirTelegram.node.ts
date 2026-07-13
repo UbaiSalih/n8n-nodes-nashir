@@ -8,7 +8,7 @@ import {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 
-import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
+import { loadAccounts, nashirApiRequest, nashirPublishPost, nashirUploadBinary } from '../shared/api';
 
 export class NashirTelegram implements INodeType {
 	description: INodeTypeDescription = {
@@ -212,7 +212,7 @@ export class NashirTelegram implements INodeType {
 						body.scheduled_at = new Date().toISOString();
 					}
 
-					responseData = await nashirApiRequest(this, 'POST', '/posts', body);
+					responseData = await nashirPublishPost(this, body);
 				} else if (operation === 'getPosts') {
 					responseData = await nashirApiRequest(this, 'GET', '/posts', undefined, { platform: 'telegram' });
 				} else {
