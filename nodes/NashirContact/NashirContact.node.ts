@@ -18,6 +18,38 @@ function paramAsString(value: unknown): string {
 	return typeof value === 'string' ? value : String(value);
 }
 
+/** Comma-separated list → trimmed, de-duplicated, non-empty entries. */
+function csvList(raw: string): string[] {
+	return Array.from(
+		new Set(
+			raw
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean),
+		),
+	);
+}
+
+/**
+ * Shared identity parse for the CRM ops: business_id must be a positive integer.
+ *
+ * Validated HERE rather than left to the server because the common wiring
+ * mistake — an expression that resolves to '' or 'undefined' because the node
+ * name in `$('Webhook')` is wrong — otherwise reaches nashir.ai as a 400
+ * "business_id is required", which reads like a server problem. Failing at the
+ * node names the actual cause. Mirrors the existing searchKnowledge check.
+ */
+function crmBusinessId(ctx: IExecuteFunctions, i: number): number {
+	const raw = paramAsString(ctx.getNodeParameter('crmBusinessId', i)).trim();
+	const businessId = parseInt(raw, 10);
+	if (!Number.isFinite(businessId) || businessId <= 0) {
+		throw new Error(
+			`businessId must be a positive integer, got "${raw}" — wire it from the webhook, e.g. {{ $('Webhook').first().json.body.business_id }}`,
+		);
+	}
+	return businessId;
+}
+
 export class NashirContact implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir Contact',
@@ -42,8 +74,20 @@ export class NashirContact implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{ name: 'Get Contact', value: 'getContact', action: 'Get contact details' },
-					{ name: 'Update Contact Tags', value: 'updateTags', action: 'Add tags to a contact' },
+					{
+						name: 'Get Contact (Legacy, WhatsApp Only)',
+						value: 'getContact',
+						action: 'Get contact details (legacy)',
+						description:
+							'Legacy WhatsApp-only lookup by phone. Reads whatsapp_contacts and always returns an EMPTY custom_fields object — use "Get Contact (CRM)" for lifecycle, custom fields, tags, ad source and deal.',
+					},
+					{
+						name: 'Update Contact Tags (Legacy, WhatsApp Only)',
+						value: 'updateTags',
+						action: 'Add tags to a contact (legacy)',
+						description:
+							'Legacy WhatsApp-only tag write by phone. Writes whatsapp_contacts.tags; its CRM mirror is apply-only since 2026-07-20, so a tag name that is not already defined for the business is reported back and not created. Use "Tag Contact" for the CRM path.',
+					},
 					{
 						name: 'Get Conversation History',
 						value: 'getConversationHistory',
@@ -55,6 +99,34 @@ export class NashirContact implements INodeType {
 						action: "Find relevant knowledge from the business's knowledge base for AI agent context",
 						description:
 							"Find relevant knowledge from the business's knowledge base for AI agent context",
+					},
+					{
+						name: 'Get Contact (CRM)',
+						value: 'getContactCrm',
+						action: 'Read the CRM contact for this conversation',
+						description:
+							'Read lifecycle, custom fields, tags, ad source and the open deal for the contact on this channel. Cross-platform (WhatsApp / Facebook / Instagram / website chat).',
+					},
+					{
+						name: 'Set Contact Field',
+						value: 'setContactField',
+						action: 'Write one custom field on the CRM contact',
+						description:
+							'Store a value the customer gave you. The field must already be defined by the merchant in nashir.ai → CRM settings; unknown keys are rejected.',
+					},
+					{
+						name: 'Tag Contact',
+						value: 'tagContact',
+						action: 'Add or remove CRM tags on the contact',
+						description:
+							"Apply tags the merchant has already defined. Apply-only — this cannot create new tags, and unknown tag keys are rejected.",
+					},
+					{
+						name: 'Set Lifecycle',
+						value: 'setLifecycle',
+						action: 'Move the CRM contact to a lifecycle stage',
+						description:
+							'Move the contact between lead / qualified / customer / inactive.',
 					},
 				],
 				default: 'getContact',
@@ -82,6 +154,114 @@ export class NashirContact implements INodeType {
 				placeholder: 'vip, arabic, lead',
 				description: 'Comma-separated list of tags to apply to the contact (idempotent)',
 				displayOptions: { show: { operation: ['updateTags'] } },
+			},
+
+			// ── Shared: CRM contact identity ─────────────────────────────────────────
+			// The four CRM ops address a contact by (business_id, channel, channel_id)
+			// — the same unique key the inbound webhook upserts on, so the row is
+			// guaranteed to exist by the time the agent runs.
+			//
+			// ⚠ WIRE THESE FROM THE WEBHOOK, NEVER FROM THE MODEL. n8n builds a tool's
+			// LLM-facing input schema ONLY from $fromAI() calls in the parameters; with
+			// plain expressions (as below) the schema is empty, so the agent decides
+			// WHETHER to call the op and never WHO it acts on. Introducing $fromAI()
+			// on any of these three would let the model name a business_id/channel_id
+			// — i.e. write to an arbitrary contact, or another business's contact.
+			{
+				displayName: 'Business ID',
+				name: 'crmBusinessId',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: "={{ $('Webhook').first().json.body.business_id }}",
+				description:
+					'Business that owns the contact. Wire from the webhook payload; must belong to the team that owns the API key.',
+				displayOptions: {
+					show: { operation: ['getContactCrm', 'setContactField', 'tagContact', 'setLifecycle'] },
+				},
+			},
+			{
+				displayName: 'Channel',
+				name: 'crmChannel',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: "={{ $('Webhook').first().json.body.platform }}",
+				description:
+					'Channel the conversation is on. Pass the webhook value straight through — both the inbound vocabulary (whatsapp_dm / facebook / instagram / website_chat) and the CRM vocabulary (whatsapp / …) are accepted; the server maps it. An unrecognized value is rejected rather than guessed, because a guess would address a different contact.',
+				displayOptions: {
+					show: { operation: ['getContactCrm', 'setContactField', 'tagContact', 'setLifecycle'] },
+				},
+			},
+			{
+				displayName: 'Channel ID',
+				name: 'crmChannelId',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: "={{ $('Webhook').first().json.body.sender_id }}",
+				description:
+					'Platform-specific sender id from the inbound webhook — WhatsApp phone, Facebook PSID, Instagram IGSID, or website-chat visitor id.',
+				displayOptions: {
+					show: { operation: ['getContactCrm', 'setContactField', 'tagContact', 'setLifecycle'] },
+				},
+			},
+
+			// ── Set Contact Field ────────────────────────────────────────────────────
+			{
+				displayName: 'Field Key',
+				name: 'fieldKey',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: 'shoe_size',
+				description:
+					'Key of a custom field the merchant has defined (nashir.ai → CRM settings). Unknown or reserved keys are rejected — this op fills the merchant\'s schema, it does not extend it.',
+				displayOptions: { show: { operation: ['setContactField'] } },
+			},
+			{
+				displayName: 'Field Value',
+				name: 'fieldValue',
+				type: 'string',
+				default: '',
+				placeholder: '42',
+				description:
+					'Value to store. Sent as text; the server coerces and validates against the field\'s declared type (number / date / list option / …) and rejects a mismatch. Leave empty to CLEAR the field.',
+				displayOptions: { show: { operation: ['setContactField'] } },
+			},
+
+			// ── Tag Contact ──────────────────────────────────────────────────────────
+			{
+				displayName: 'Add Tags',
+				name: 'addTags',
+				type: 'string',
+				default: '',
+				placeholder: 'vip, wants_delivery',
+				description:
+					'Comma-separated tag KEYS to add (not display names). Apply-only: every key must already exist for the business or the whole call is rejected.',
+				displayOptions: { show: { operation: ['tagContact'] } },
+			},
+			{
+				displayName: 'Remove Tags',
+				name: 'removeTags',
+				type: 'string',
+				default: '',
+				placeholder: 'awaiting_reply',
+				description: 'Comma-separated tag keys to remove from the contact',
+				displayOptions: { show: { operation: ['tagContact'] } },
+			},
+
+			// ── Set Lifecycle ────────────────────────────────────────────────────────
+			{
+				displayName: 'Stage',
+				name: 'stage',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: 'qualified',
+				description:
+					'Lifecycle stage: lead, qualified, customer or inactive. Validated server-side against the allowed set; an unknown stage is rejected.',
+				displayOptions: { show: { operation: ['setLifecycle'] } },
 			},
 
 			// ── Get Conversation History fields ──────────────────────────────────────
@@ -234,6 +414,72 @@ export class NashirContact implements INodeType {
 						`/knowledge/search`,
 						body,
 					);
+
+				// ── CRM ops (business_id + channel + channel_id) ─────────────────
+				// Every one of these resolves its identity from node parameters wired
+				// to the webhook — never from model-supplied arguments. See the
+				// warning on the shared identity properties above.
+				} else if (
+					operation === 'getContactCrm' ||
+					operation === 'setContactField' ||
+					operation === 'tagContact' ||
+					operation === 'setLifecycle'
+				) {
+					const businessId = crmBusinessId(this, i);
+					const channel = paramAsString(this.getNodeParameter('crmChannel', i)).trim();
+					const channelId = paramAsString(this.getNodeParameter('crmChannelId', i)).trim();
+					if (!channel) throw new Error(`${operation}: channel is required`);
+					if (!channelId) throw new Error(`${operation}: channelId is required`);
+
+					if (operation === 'getContactCrm') {
+						responseData = await nashirApiRequest(
+							this,
+							'GET',
+							'/crm/contacts/by-channel',
+							undefined,
+							{ business_id: businessId, channel, channel_id: channelId },
+						);
+
+					} else if (operation === 'setContactField') {
+						const fieldKey = paramAsString(this.getNodeParameter('fieldKey', i)).trim();
+						if (!fieldKey) throw new Error('Set Contact Field: fieldKey is required');
+						const rawValue = paramAsString(this.getNodeParameter('fieldValue', i, ''));
+						// Empty string CLEARS the field (the server treats null/'' as a
+						// clear). Sent as-is otherwise — the server coerces to the
+						// field's declared type and rejects a mismatch, so a bad value
+						// surfaces as a 400 here rather than being silently stored.
+						const fieldValue: string | null = rawValue === '' ? null : rawValue;
+						responseData = await nashirApiRequest(this, 'POST', '/crm/contacts/fields', {
+							business_id: businessId,
+							channel,
+							channel_id: channelId,
+							fields: { [fieldKey]: fieldValue },
+						});
+
+					} else if (operation === 'tagContact') {
+						const add = csvList(paramAsString(this.getNodeParameter('addTags', i, '')));
+						const remove = csvList(paramAsString(this.getNodeParameter('removeTags', i, '')));
+						if (add.length === 0 && remove.length === 0) {
+							throw new Error('Tag Contact: provide at least one key in addTags or removeTags');
+						}
+						responseData = await nashirApiRequest(this, 'POST', '/crm/contacts/tags', {
+							business_id: businessId,
+							channel,
+							channel_id: channelId,
+							add,
+							remove,
+						});
+
+					} else {
+						const stage = paramAsString(this.getNodeParameter('stage', i)).trim();
+						if (!stage) throw new Error('Set Lifecycle: stage is required');
+						responseData = await nashirApiRequest(this, 'POST', '/crm/contacts/lifecycle', {
+							business_id: businessId,
+							channel,
+							channel_id: channelId,
+							stage,
+						});
+					}
 
 				} else {
 					throw new Error(`Unknown operation: ${operation}`);

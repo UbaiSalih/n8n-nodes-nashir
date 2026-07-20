@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.16.0 — 2026-07-20
+
+### Added
+- **Four CRM contact operations on `Nashir Contact`** — the node half of the
+  nashir Phase-2 bot contract. They let an AI Agent read and update the CRM
+  record for the person it is talking to, on **any** channel:
+  - **Get Contact (CRM)** → `GET /api/v1/crm/contacts/by-channel` — lifecycle,
+    the merchant's custom fields, tags (resolved to name/emoji/colour), CTWA ad
+    source, and the open deal.
+  - **Set Contact Field** → `POST /api/v1/crm/contacts/fields` — store one value
+    the customer gave you. The field must already be defined by the merchant;
+    unknown and reserved keys are rejected, and the value is validated against
+    the field's declared type. An empty **Field Value** clears the field.
+  - **Tag Contact** → `POST /api/v1/crm/contacts/tags` — **apply-only**
+    add/remove by tag KEY. This cannot create tags: a model left free to invent
+    them coins near-duplicates ("vip" / "v_i_p" / "vip_customer") and the
+    merchant's segments quietly rot. Unknown keys are rejected.
+  - **Set Lifecycle** → `POST /api/v1/crm/contacts/lifecycle` — move between
+    lead / qualified / customer / inactive, validated server-side.
+
+  All four identify the contact by **(Business ID, Channel, Channel ID)** rather
+  than by phone, so they work on **WhatsApp, Facebook, Instagram and website
+  chat** — unlike the two legacy phone-only ops. **Channel** takes the inbound
+  webhook value as-is (`whatsapp_dm`, `facebook`, …); the server maps it, and an
+  unrecognised value is rejected rather than guessed, because a guess would
+  address a different contact. Every write is recorded on the contact's timeline
+  as bot-attributed, so a merchant can always tell the bot's edits from staff.
+
+  ⚠ **Wire Business ID / Channel / Channel ID from the webhook, never from the
+  model.** n8n builds a tool's LLM-facing input schema *only* from `$fromAI()`
+  calls in the node's parameters — with plain expressions (the documented
+  wiring) that schema is empty, so the agent decides *whether* to call an op and
+  never *who* it acts on. Adding `$fromAI()` to any of the three identity fields
+  would let the model name a `business_id` / `channel_id` and write to an
+  arbitrary contact. The placeholders show the correct expressions.
+
+  Requires nashir.ai with the Phase-2 CRM endpoints deployed (2026-07-20), and
+  the team must be inside the contact-fields rollout — otherwise these ops
+  return **403 `feature_disabled`**.
+
+### Changed
+- The two legacy ops are **renamed for clarity only** — no behaviour change,
+  values unchanged (`getContact`, `updateTags`), existing workflows keep working:
+  - "Get Contact" → **"Get Contact (Legacy, WhatsApp Only)"**. It reads
+    `whatsapp_contacts` and has always returned an **empty `custom_fields`**;
+    the description now says so and points at Get Contact (CRM).
+  - "Update Contact Tags" → **"Update Contact Tags (Legacy, WhatsApp Only)"**.
+    Note its server-side CRM mirror became **apply-only on 2026-07-20**: the
+    `whatsapp_contacts.tags` write is unchanged, but a tag name not already
+    defined for the business is no longer created in CRM — it comes back in the
+    response as `crm_skipped`. Use **Tag Contact** for the CRM path.
+
+### Unchanged
+- `N8N_STATUS_POLL_ENABLED` behaviour is untouched (still default-OFF on the
+  host); this release carries no host-env change.
+- No change to any other node, to the `nashirApi` credential, or to the existing
+  `getConversationHistory` / `searchKnowledge` operations.
+
 ## 0.15.0 — 2026-07-13
 
 ### Added
