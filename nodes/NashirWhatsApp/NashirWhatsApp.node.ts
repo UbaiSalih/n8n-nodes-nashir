@@ -163,6 +163,20 @@ export class NashirWhatsApp implements INodeType {
 				displayOptions: { show: { operation: ['getConversationHistory'] } },
 			},
 
+			{
+				displayName: 'Account ID',
+				name: 'accountId',
+				type: 'string',
+				default: '',
+				description:
+					'Receiving WhatsApp number (social_accounts.id) to scope the history to. ' +
+					'A customer messaging two of a business\'s numbers otherwise gets ONE interleaved ' +
+					'transcript, and the agent answers with the wrong number\'s facts. Set it to ' +
+					'{{ $(\'Webhook\').first().json.body.account_id }} — the dispatcher already sends it. ' +
+					'LEAVE EMPTY for the previous, unscoped behaviour; empty is never sent.',
+				displayOptions: { show: { operation: ['getConversationHistory'] } },
+			},
+
 			// ── Set AI Status fields ────────────────────────────────────────────────
 			{
 				displayName: 'Action',
@@ -320,12 +334,25 @@ export class NashirWhatsApp implements INodeType {
 				} else if (operation === 'getConversationHistory') {
 					const phone = encodeURIComponent(this.getNodeParameter('phone', i) as string);
 					const limit = this.getNodeParameter('limit', i, 20) as number;
+					// Per-number scope (0.16.1). Sent ONLY when non-empty, so an
+					// unset/blank field is byte-identical to pre-0.16.1: the server
+					// treats an absent account_id as "no scoping". An expression that
+					// resolves to null/undefined stringifies to '' here and is dropped
+					// rather than sent as the literal 'null', which the server would
+					// reject with 400 and leave the agent with no history at all.
+					const accountIdRaw = this.getNodeParameter('accountId', i, '') as unknown;
+					const accountId =
+						accountIdRaw === null || accountIdRaw === undefined ? '' : String(accountIdRaw).trim();
+					const qs: Record<string, string | number> = { limit };
+					if (accountId !== '' && accountId !== 'null' && accountId !== 'undefined') {
+						qs.account_id = accountId;
+					}
 					responseData = await nashirApiRequest(
 						this,
 						'GET',
 						`/conversations/${phone}/messages`,
 						undefined,
-						{ limit },
+						qs,
 					);
 
 				} else if (operation === 'getAiStatus') {
