@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-nashir",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "n8n community nodes for nashir.ai — publish to Facebook, Instagram, Threads, TikTok, LinkedIn, YouTube, WhatsApp and Telegram, plus AI conversation management",
   "keywords": [
     "n8n-community-node-package",
@@ -38,6 +38,7 @@
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes credentials package.json",
     "lintfix": "eslint nodes credentials package.json --fix",
+    "test": "node --test \"test/*.test.mjs\"",
     "prepublishOnly": "npm run build"
   },
   "n8n": {

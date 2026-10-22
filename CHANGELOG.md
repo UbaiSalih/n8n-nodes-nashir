@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.17.0 — 2026-10-22
+
+### Added
+- **`Nashir WhatsApp` → Send Message now tells nashir.ai which customer message
+  it answers** (`nashir_message_id`). Without it the server guessed "the
+  sender's latest message", so when a customer sent two quick messages that ran
+  as two separate bot runs, the first reply was counted against the second
+  message and the second reply against nothing. With the id, every reply is
+  counted against its own message, and the inbox threads it under the right one.
+- New optional field **Inbound Message ID** (Send Message only, empty by
+  default). Leave it empty and the node reads
+  `{{ $('Webhook').first().json.body.nashir_message_id }}`, the value nashir.ai
+  already sends to every workflow, so existing workflows pick it up after the
+  update with no edits. A filled-in field is used instead.
+- **Fails safe.** If there is no node called `Webhook`, it did not run, or the
+  value is not a positive whole number, nothing extra is sent: the request is
+  exactly what 0.16.1 sent. No other operation or node changes.
+
+## 0.16.1 — 2026-08-18
+
+### Added
+- `Nashir WhatsApp` → Get Conversation History: optional **Account ID**, sent
+  as `account_id` only when non-empty, to scope the history to one WhatsApp
+  number.
+
 ## 0.16.0 — 2026-07-20
 
 ### Added

@@ -10,6 +10,42 @@ import {
 
 import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
 
+// The hosted clones' Webhook body carries the inbox id of the inbound message
+// the run answers. No leading '=': evaluateExpression() adds it.
+const WEBHOOK_INBOUND_ID_EXPR = "{{ $('Webhook').first().json.body.nashir_message_id }}";
+
+/** A positive safe integer, else null (never 0, negatives, '12abc', 'null'). */
+function toInboundId(value: unknown): number | null {
+	const s = value === null || value === undefined ? '' : String(value).trim();
+	if (!/^[1-9]\d*$/.test(s)) return null;
+	const n = Number(s);
+	return Number.isSafeInteger(n) ? n : null;
+}
+
+/**
+ * The turn this send answers (0.17.0). Without it the server guesses "the
+ * sender's latest inbound", which books a debounce-split burst's reply against
+ * the wrong turn. A non-empty Inbound Message ID field decides on its own;
+ * an empty field reads the Webhook body. Anything that is not a positive
+ * integer — or any evaluation error (no node named Webhook, it did not run,
+ * a customer's own workflow) — returns null and nothing is sent, which is
+ * byte-identical to 0.16.1.
+ */
+function resolveInboundMessageId(ctx: IExecuteFunctions, i: number): number | null {
+	let raw: unknown;
+	try {
+		raw = ctx.getNodeParameter('inboundMessageId', i, '');
+	} catch {
+		return null;
+	}
+	if (String(raw ?? '').trim() !== '') return toInboundId(raw);
+	try {
+		return toInboundId(ctx.evaluateExpression(WEBHOOK_INBOUND_ID_EXPR, i));
+	} catch {
+		return null;
+	}
+}
+
 export class NashirWhatsApp implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir WhatsApp',
@@ -113,6 +149,20 @@ export class NashirWhatsApp implements INodeType {
 				displayOptions: { show: { operation: ['sendMessage'], messageType: ['image'] } },
 			},
 
+			// ── Inbound Message ID (AI-reply counting) ──────────────────────────────
+			{
+				displayName: 'Inbound Message ID',
+				name: 'inboundMessageId',
+				type: 'string',
+				default: '',
+				description:
+					'nashir.ai id of the customer message this send answers, so the reply is counted against ' +
+					'the right turn. LEAVE EMPTY to read it from the Webhook node ' +
+					'({{ $(\'Webhook\').first().json.body.nashir_message_id }}). If neither gives a positive ' +
+					'whole number, nothing is sent (the previous behaviour).',
+				displayOptions: { show: { operation: ['sendMessage'] } },
+			},
+
 			// ── Reply / Mark as Read fields ─────────────────────────────────────────
 			{
 				displayName: 'Message ID',
@@ -160,6 +210,20 @@ export class NashirWhatsApp implements INodeType {
 				type: 'number',
 				default: 20,
 				description: 'Number of messages to return (most recent first)',
+				displayOptions: { show: { operation: ['getConversationHistory'] } },
+			},
+
+			{
+				displayName: 'Account ID',
+				name: 'accountId',
+				type: 'string',
+				default: '',
+				description:
+					'Receiving WhatsApp number (social_accounts.id) to scope the history to. ' +
+					'A customer messaging two of a business\'s numbers otherwise gets ONE interleaved ' +
+					'transcript, and the agent answers with the wrong number\'s facts. Set it to ' +
+					'{{ $(\'Webhook\').first().json.body.account_id }} — the dispatcher already sends it. ' +
+					'LEAVE EMPTY for the previous, unscoped behaviour; empty is never sent.',
 				displayOptions: { show: { operation: ['getConversationHistory'] } },
 			},
 
@@ -299,6 +363,9 @@ export class NashirWhatsApp implements INodeType {
 						body.media_url = await nashirUploadBinary(this, i, binaryProp);
 					}
 
+					const inboundId = resolveInboundMessageId(this, i);
+					if (inboundId !== null) body.nashir_message_id = inboundId;
+
 					responseData = await nashirApiRequest(this, 'POST', '/messages', body);
 
 				} else if (operation === 'getMessages') {
@@ -320,12 +387,25 @@ export class NashirWhatsApp implements INodeType {
 				} else if (operation === 'getConversationHistory') {
 					const phone = encodeURIComponent(this.getNodeParameter('phone', i) as string);
 					const limit = this.getNodeParameter('limit', i, 20) as number;
+					// Per-number scope (0.16.1). Sent ONLY when non-empty, so an
+					// unset/blank field is byte-identical to pre-0.16.1: the server
+					// treats an absent account_id as "no scoping". An expression that
+					// resolves to null/undefined stringifies to '' here and is dropped
+					// rather than sent as the literal 'null', which the server would
+					// reject with 400 and leave the agent with no history at all.
+					const accountIdRaw = this.getNodeParameter('accountId', i, '') as unknown;
+					const accountId =
+						accountIdRaw === null || accountIdRaw === undefined ? '' : String(accountIdRaw).trim();
+					const qs: Record<string, string | number> = { limit };
+					if (accountId !== '' && accountId !== 'null' && accountId !== 'undefined') {
+						qs.account_id = accountId;
+					}
 					responseData = await nashirApiRequest(
 						this,
 						'GET',
 						`/conversations/${phone}/messages`,
 						undefined,
-						{ limit },
+						qs,
 					);
 
 				} else if (operation === 'getAiStatus') {
