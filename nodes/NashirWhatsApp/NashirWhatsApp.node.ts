@@ -10,6 +10,42 @@ import {
 
 import { loadAccounts, nashirApiRequest, nashirUploadBinary } from '../shared/api';
 
+// The hosted clones' Webhook body carries the inbox id of the inbound message
+// the run answers. No leading '=': evaluateExpression() adds it.
+const WEBHOOK_INBOUND_ID_EXPR = "{{ $('Webhook').first().json.body.nashir_message_id }}";
+
+/** A positive safe integer, else null (never 0, negatives, '12abc', 'null'). */
+function toInboundId(value: unknown): number | null {
+	const s = value === null || value === undefined ? '' : String(value).trim();
+	if (!/^[1-9]\d*$/.test(s)) return null;
+	const n = Number(s);
+	return Number.isSafeInteger(n) ? n : null;
+}
+
+/**
+ * The turn this send answers (0.17.0). Without it the server guesses "the
+ * sender's latest inbound", which books a debounce-split burst's reply against
+ * the wrong turn. A non-empty Inbound Message ID field decides on its own;
+ * an empty field reads the Webhook body. Anything that is not a positive
+ * integer — or any evaluation error (no node named Webhook, it did not run,
+ * a customer's own workflow) — returns null and nothing is sent, which is
+ * byte-identical to 0.16.1.
+ */
+function resolveInboundMessageId(ctx: IExecuteFunctions, i: number): number | null {
+	let raw: unknown;
+	try {
+		raw = ctx.getNodeParameter('inboundMessageId', i, '');
+	} catch {
+		return null;
+	}
+	if (String(raw ?? '').trim() !== '') return toInboundId(raw);
+	try {
+		return toInboundId(ctx.evaluateExpression(WEBHOOK_INBOUND_ID_EXPR, i));
+	} catch {
+		return null;
+	}
+}
+
 export class NashirWhatsApp implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Nashir WhatsApp',
@@ -111,6 +147,20 @@ export class NashirWhatsApp implements INodeType {
 				description:
 					'Public HTTPS URL of the image to send. WhatsApp fetches it directly (must be JPEG or PNG — WebP is not accepted for image messages). Free-form image is allowed inside the 24h customer-service window.',
 				displayOptions: { show: { operation: ['sendMessage'], messageType: ['image'] } },
+			},
+
+			// ── Inbound Message ID (AI-reply counting) ──────────────────────────────
+			{
+				displayName: 'Inbound Message ID',
+				name: 'inboundMessageId',
+				type: 'string',
+				default: '',
+				description:
+					'nashir.ai id of the customer message this send answers, so the reply is counted against ' +
+					'the right turn. LEAVE EMPTY to read it from the Webhook node ' +
+					'({{ $(\'Webhook\').first().json.body.nashir_message_id }}). If neither gives a positive ' +
+					'whole number, nothing is sent (the previous behaviour).',
+				displayOptions: { show: { operation: ['sendMessage'] } },
 			},
 
 			// ── Reply / Mark as Read fields ─────────────────────────────────────────
@@ -312,6 +362,9 @@ export class NashirWhatsApp implements INodeType {
 						const binaryProp = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
 						body.media_url = await nashirUploadBinary(this, i, binaryProp);
 					}
+
+					const inboundId = resolveInboundMessageId(this, i);
+					if (inboundId !== null) body.nashir_message_id = inboundId;
 
 					responseData = await nashirApiRequest(this, 'POST', '/messages', body);
 
