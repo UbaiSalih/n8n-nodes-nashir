@@ -264,6 +264,31 @@ export async function resolveCarouselImages(
 }
 
 /**
+ * GET for a loadOptions method (dropdowns). Never throws: a failed request
+ * returns null so the editor shows an empty list instead of an error.
+ */
+export async function nashirLoadOptionsGet(
+	ctx: ILoadOptionsFunctions,
+	endpoint: string,
+	qs?: IDataObject,
+): Promise<IDataObject | null> {
+	try {
+		const credentials = await ctx.getCredentials('nashirApi');
+		const baseUrl = ((credentials.baseUrl as string) || 'https://nashir.ai').replace(/\/$/, '');
+		const response = await ctx.helpers.request({
+			method: 'GET' as IHttpRequestMethods,
+			uri: `${baseUrl}/api/v1${endpoint}`,
+			headers: { Authorization: `Bearer ${credentials.apiKey as string}`, Accept: 'application/json' },
+			json: true,
+			qs,
+		});
+		return response && typeof response === 'object' ? (response as IDataObject) : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Look up a connected account's platform by id (e.g. 'linkedin' vs
  * 'linkedin_business'). Used by the LinkedIn node to detect a personal page,
  * which cannot post a native MultiImage carousel. Returns null if not found.

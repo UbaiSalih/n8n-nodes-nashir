@@ -107,7 +107,7 @@ test('without an id the body is byte-identical to 0.16.1', async () => {
 test('image, template and media sends carry the id too', async () => {
 	for (const p of [
 		{ ...sendText, messageType: 'image', imageUrl: 'https://x.test/a.jpg', content: undefined },
-		{ ...sendText, messageType: 'template' },
+		{ ...sendText, messageType: 'template', templateId: 42, content: undefined },
 		{ ...sendText, messageType: 'media', binaryPropertyName: 'data', content: undefined },
 	]) {
 		const out = await run(p);

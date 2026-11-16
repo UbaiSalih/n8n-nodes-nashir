@@ -18,7 +18,7 @@ n8n-nodes-nashir
 
 | Operation | Description |
 |-----------|-------------|
-| Send Message | Send text, template, or media message to a phone number |
+| Send Message | Send a text, an approved template, an image, a document or a video to a phone number |
 | Reply to Message | Reply to a specific message by ID |
 | Get Messages | Retrieve recent WhatsApp messages |
 | Mark as Read | Mark a message as read |
@@ -27,6 +27,55 @@ n8n-nodes-nashir
 | **Set AI Status** | Pause or resume AI auto-reply for a conversation |
 | **Save Message to Inbox** | Store an external message in nashir.ai (ingest) |
 | **Get Contact** | Fetch contact details by phone number |
+
+#### Send Message — message types
+
+| Message Type | What it sends | When it is allowed |
+|--------------|---------------|--------------------|
+| Text | Plain text (**Content**) | Inside the 24-hour customer-service window |
+| Template | An approved WhatsApp template | Any time, to any number (subject to opt-out and number health) |
+| Image (by URL) | A JPEG / PNG by public https link | Inside the 24-hour window |
+| Document (by URL) | A file by public https link (**Document URL**, optional **File Name** and **Caption**) | Inside the 24-hour window |
+| Video (by URL) | A video by public https link (**Video URL**, optional **Caption**) | Inside the 24-hour window |
+| Media (Binary Upload) | Uploads a binary file, then sends it as an image, video or document according to its MIME type | Inside the 24-hour window |
+
+For Image / Document / Video, WhatsApp fetches the link itself, so it must be a
+public `https://` address. Document and Video also need the inbox-media feature
+to be on for your nashir.ai team; the API answers `inbox_media_not_enabled`
+otherwise.
+
+**Template**
+
+1. Choose the **Account**, then pick the template in **Template Name or ID**.
+   The list shows the approved templates of that number as
+   `name (language) · category`. A template the API cannot send is marked
+   `— not sendable: <reason>`.
+2. To set the template from an expression, give its numeric id — the `id`
+   field of `GET /api/v1/whatsapp/templates?account_id=<account id>` (the same
+   list the dropdown reads). When Account is an expression the dropdown is
+   empty; use the id.
+3. Fill in the values the template needs (leave a field empty when the template
+   has nothing there):
+
+| Field | JSON | Example |
+|-------|------|---------|
+| Body Variables | array in order, or object keyed `"1"`, `"2"`, … | `["Ali","2026-12-15"]` or `{"1":"Ali","2":"2026-12-15"}` |
+| Header Variables | same shape, for a text header | `["Ali"]` |
+| Button Variables | object keyed by button index; `card_<card>_<button>` for carousel cards | `{"0":"INV-1"}` / `{"card_0_1":"SKU-9"}` |
+| Header Media URL | plain https link (not JSON) for an image / video / document header | `https://example.com/invoice.pdf` |
+
+The number of values must match the template; the API answers
+`variable_count_mismatch` with the expected counts otherwise. Invalid JSON is
+refused by the node before any request is made.
+
+> ⚠ **Dry Run (Preview Only)** is OFF by default. When you turn it ON the API
+> checks the template, the values and the recipient and returns
+> `{ "dry_run": true, "preview": { … } }` — **nothing is sent to the customer**.
+> Turn it OFF again to really send.
+
+**Idempotency Key** (optional): a unique text for this send, for example
+`order-1042-confirmation`. Repeating the request with the same key does not send
+the message twice.
 
 ### Nashir Contact
 
