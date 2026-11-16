@@ -203,7 +203,7 @@ export function templateOptions(items: unknown): Array<{ name: string; value: nu
 		const category = str(raw.category);
 		if (category) name += ` · ${category}`;
 		if (raw.sendable === false) name += ` — not sendable: ${str(raw.not_sendable_reason) || 'unknown reason'}`;
-		out.push({ name, value: id, description: `Template id ${id}` });
+		out.push({ name, value: id, description: `Template ID ${id}` });
 	}
 	return out;
 }

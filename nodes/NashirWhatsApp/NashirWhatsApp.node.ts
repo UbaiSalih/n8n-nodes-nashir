@@ -108,6 +108,8 @@ export class NashirWhatsApp implements INodeType {
 				displayName: 'Message Type',
 				name: 'messageType',
 				type: 'options',
+				// Deliberately NOT alphabetical: Text (the default) first, then by how often each is used.
+				// eslint-disable-next-line n8n-nodes-base/node-param-options-type-unsorted-items
 				options: [
 					{ name: 'Text', value: 'text' },
 					{
@@ -157,9 +159,11 @@ export class NashirWhatsApp implements INodeType {
 				default: '',
 				required: true,
 				description:
-					'The approved template to send, listed for the chosen Account as "name (language) · category". ' +
-					'Choose from the list, or specify the numeric template ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a> ' +
-					'(the "id" from GET /api/v1/whatsapp/templates?account_id=…). Templates marked "not sendable" are refused by the API.',
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				hint:
+					'Approved templates of the chosen Account, shown as "name (language) · category". ' +
+					'The ID is the nashir template ID (the "id" from GET /api/v1/whatsapp/templates?account_id=…, also shown on each template card in nashir). ' +
+					'Templates marked "not sendable" are refused by the API.',
 				displayOptions: { show: { operation: ['sendMessage'], messageType: ['template'] } },
 			},
 			{
