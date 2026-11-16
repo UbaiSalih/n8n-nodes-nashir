@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-nashir",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "n8n community nodes for nashir.ai — publish to Facebook, Instagram, Threads, TikTok, LinkedIn, YouTube, WhatsApp and Telegram, plus AI conversation management",
   "keywords": [
     "n8n-community-node-package",
@@ -60,6 +60,9 @@
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-n8n-nodes-base": "^1.16.7",
     "n8n-workflow": "^2.13.1",
     "typescript": "^5.9.3"
   }

@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.18.0 — 2026-11-16
+
+### Fixed
+- **`Nashir WhatsApp` → Send Message → Template now works.** It used to send
+  only a text `content`, with no template reference, so the API refused every
+  template send. It now sends `template: { id }` with the values the template
+  needs.
+- **Message Type "Media" now works.** It used to send `message_type: "media"`
+  with a `media_url`, which the API does not accept. The file is still uploaded
+  first; it is then sent as an image, a video or a document according to its
+  MIME type (`image/*` → image, `video/*` → video, anything else → document
+  with its file name). The option is now labelled **Media (Binary Upload)**;
+  saved workflows keep working with no edits.
+
+### Added
+- **Template Name or ID** — a dropdown of the chosen Account's approved
+  templates (`name (language) · category`, from
+  `GET /api/v1/whatsapp/templates`). Templates the API cannot send are marked
+  `— not sendable: <reason>`. An expression with the numeric template id is
+  accepted too.
+- **Body Variables / Header Variables / Button Variables** (JSON) and
+  **Header Media URL** for templates. Empty fields are not sent. Invalid JSON is
+  refused by the node before any request.
+- **Dry Run (Preview Only)** for templates, OFF by default. When ON the API
+  returns a preview and **sends nothing**.
+- **Idempotency Key** (optional) for template sends.
+- **Document (by URL)** and **Video (by URL)** message types, with an optional
+  caption (and file name for documents). The link must be `https://`. Like every
+  free-form message they are allowed only inside the 24-hour customer-service
+  window.
+
+### Changed
+- **Content** is shown for Text only. A saved Template node from 0.17.0 or
+  earlier has no template chosen and now stops with "Template is required"
+  instead of being refused by the API; pick a template to fix it.
+- Text and Image sends, and the Inbound Message ID handling, are unchanged.
+
 ## 0.17.0 — 2026-10-22
 
 ### Added
