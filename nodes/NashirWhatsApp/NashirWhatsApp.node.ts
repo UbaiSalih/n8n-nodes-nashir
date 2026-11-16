@@ -11,6 +11,7 @@ import {
 
 import { loadAccounts, nashirApiRequest, nashirLoadOptionsGet, nashirUploadBinary } from '../shared/api';
 import { buildSendMessageBody, SendBodyError, SendBodyInput, templateOptions } from './sendBody';
+import { buildTypingBody, resolveTypingMessageId, TypingInputError } from './typing';
 
 // The hosted clones' Webhook body carries the inbox id of the inbound message
 // the run answers. No leading '=': evaluateExpression() adds it.
@@ -33,6 +34,9 @@ function toInboundId(value: unknown): number | null {
  * a customer's own workflow) — returns null and nothing is sent, which is
  * byte-identical to 0.16.1.
  */
+// Show Typing: the message id from a node named "Webhook" (the message.received body).
+const WEBHOOK_TYPING_ID_EXPR = "{{ $('Webhook').first().json.body.data.message_id }}";
+
 function resolveInboundMessageId(ctx: IExecuteFunctions, i: number): number | null {
 	let raw: unknown;
 	try {
@@ -77,6 +81,12 @@ export class NashirWhatsApp implements INodeType {
 					{ name: 'Save Message to Inbox', value: 'saveMessage', action: 'Save a message to the inbox' },
 					{ name: 'Send Message', value: 'sendMessage', action: 'Send a message' },
 					{ name: 'Set AI Status', value: 'setAiStatus', action: 'Pause or resume AI auto-reply' },
+					{
+						name: 'Show Typing',
+						value: 'showTyping',
+						description: 'Show "typing…" to the customer while your workflow prepares the reply. Marks the message read.',
+						action: 'Show typing to the customer',
+					},
 				],
 				default: 'sendMessage',
 			},
@@ -90,7 +100,7 @@ export class NashirWhatsApp implements INodeType {
 				default: '',
 				required: true,
 				description: 'Select which WhatsApp account to use',
-				displayOptions: { show: { operation: ['sendMessage', 'replyMessage'] } },
+				displayOptions: { show: { operation: ['sendMessage', 'replyMessage', 'showTyping'] } },
 			},
 
 			{
@@ -305,6 +315,28 @@ export class NashirWhatsApp implements INodeType {
 					'({{ $(\'Webhook\').first().json.body.nashir_message_id }}). If neither gives a positive ' +
 					'whole number, nothing is sent (the previous behaviour).',
 				displayOptions: { show: { operation: ['sendMessage'] } },
+			},
+
+			// ── Show Typing fields ──────────────────────────────────────────────────
+			{
+				displayName:
+					'Shows WhatsApp’s "typing…" to the customer. It marks the message read (blue ticks). It lasts up to 25 seconds or until you reply, whichever comes first. Use it only if you will reply. If your workflow runs longer than 25 seconds, call it again.',
+				name: 'typingNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: { show: { operation: ['showTyping'] } },
+			},
+			{
+				displayName: 'Message ID',
+				name: 'typingMessageId',
+				type: 'string',
+				default: '',
+				placeholder: 'Leave empty to use the incoming message',
+				description:
+					'The customer message to show typing for. LEAVE EMPTY to use the incoming item’s message id ' +
+					'(the message.received webhook’s data.message_id), or a node named "Webhook". ' +
+					'Accepts the WhatsApp message id (wamid.…) or the nashir.ai inbox id.',
+				displayOptions: { show: { operation: ['showTyping'] } },
 			},
 
 			// ── Reply / Mark as Read fields ─────────────────────────────────────────
@@ -563,6 +595,24 @@ export class NashirWhatsApp implements INodeType {
 						message: replyText,
 						account_id: accountId,
 					});
+
+				} else if (operation === 'showTyping') {
+					const accountId = this.getNodeParameter('account', i, '') as string;
+					const messageId = resolveTypingMessageId(
+						this.getNodeParameter('typingMessageId', i, ''),
+						items[i]?.json,
+						() => this.evaluateExpression(WEBHOOK_TYPING_ID_EXPR, i),
+					);
+					let body: IDataObject;
+					try {
+						body = buildTypingBody(accountId, messageId) as IDataObject;
+					} catch (e) {
+						if (e instanceof TypingInputError) {
+							throw new NodeOperationError(this.getNode(), e.message, { itemIndex: i });
+						}
+						throw e;
+					}
+					responseData = await nashirApiRequest(this, 'POST', '/messages/typing', body);
 
 				} else if (operation === 'markRead') {
 					const messageId = this.getNodeParameter('messageId', i) as string;
