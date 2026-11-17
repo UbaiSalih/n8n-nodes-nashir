@@ -22,6 +22,7 @@ n8n-nodes-nashir
 | Reply to Message | Reply to a specific message by ID |
 | Get Messages | Retrieve recent WhatsApp messages |
 | Mark as Read | Mark a message as read |
+| **Show Typing** | Show WhatsApp’s “typing…” to the customer while your workflow prepares the reply |
 | **Get Conversation History** | Fetch the last N messages for a phone number |
 | **Get AI Status** | Check if AI auto-reply is active or paused for a conversation |
 | **Set AI Status** | Pause or resume AI auto-reply for a conversation |
@@ -76,6 +77,31 @@ refused by the node before any request is made.
 **Idempotency Key** (optional): a unique text for this send, for example
 `order-1042-confirmation`. Repeating the request with the same key does not send
 the message twice.
+
+#### Show Typing
+
+Shows WhatsApp’s “typing…” to the customer, for example right after the Webhook
+node and before a slow AI step. It calls `POST /api/v1/messages/typing`.
+
+- **Account**: the WhatsApp number the customer wrote to.
+- **Message ID**: leave it empty to use the incoming message — the item’s
+  `body.data.message_id` (the `message.received` webhook), or a node named
+  **Webhook**. You can also give a WhatsApp message id (`wamid.…`) or a
+  nashir.ai inbox id.
+
+Four rules:
+
+1. It marks the message read (blue ticks). WhatsApp has no typing without that.
+2. It lasts up to 25 seconds or until you reply, whichever comes first.
+3. Use it only if you will reply.
+4. If your workflow runs longer than 25 seconds, call it again. A repeat for the
+   same message within 5 seconds sends nothing new and answers with the seconds
+   left (`"repeated": true`).
+
+The API refuses with a coded error instead of pretending to succeed, for example
+`chat_controlled` (409) when a person on your team holds the chat,
+`not_inbound` for your own reply, or `message_not_found`. Needs nashir.ai with
+the typing endpoint (live from November 2026).
 
 ### Nashir Contact
 

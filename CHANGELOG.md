@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.19.0 — 2026-11-16
+
+### Added
+- **`Nashir WhatsApp` → Show Typing.** Shows WhatsApp’s “typing…” to the
+  customer while your workflow prepares a reply (`POST /api/v1/messages/typing`).
+  **Message ID** may stay empty: the node then uses the incoming item’s
+  `body.data.message_id` (the `message.received` webhook), and falls back to a
+  node named **Webhook**. A numeric id is sent as the nashir.ai inbox id.
+  The node shows the rules: it marks the message read, lasts up to 25 seconds
+  or until you reply, use it only if you will reply, call it again if the
+  workflow runs longer.
+
 ## 0.18.0 — 2026-11-16
 
 ### Fixed
